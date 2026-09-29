@@ -30,7 +30,7 @@ Aplikasi manajemen penjualan dan inventaris untuk bisnis kuliner (binwich/sandwi
 ### 1. Clone Repository
 
 ```bash
-git clone <url-repository-anda>
+git clone https://github.com/Azepp/binwich-management.git
 cd binwich-management
 ```
 
@@ -246,11 +246,10 @@ MIT License - bebas digunakan untuk keperluan pribadi maupun komersial.
 
 ## Bantuan
 
-- **Issues**: [GitHub Issues](https://github.com/your-repo/issues)
 - **Docs Next.js**: [nextjs.org/docs](https://nextjs.org/docs)
 - **Docs Prisma**: [prisma.io/docs](https://www.prisma.io/docs)
 - **Docs Supabase**: [supabase.com/docs](https://supabase.com/docs)
 
 ---
 
-*Dibuat dengan ❤️ untuk kemudahan manajemen bisnis kuliner*
+*Dibuat oleh Cecep untuk kemudahan manajemen penjualan level pemula*
