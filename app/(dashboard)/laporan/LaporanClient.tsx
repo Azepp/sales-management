@@ -13,6 +13,7 @@ import { id } from "date-fns/locale";
 import { formatCurrency } from "@/lib/format-rupiah";
 import { MultiSeriesBarChart, type ChartPoint } from "@/components/MultiSeriesBarChart";
 import { StatusBadge } from "@/components/StatusBadge";
+import { ProofLink } from "@/components/ProofLink";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -38,7 +39,7 @@ interface Sale {
   discountAmount: number;
   total: number;
   items: Array<{ product: { name: string; costPrice: number }; qty: number; priceAtSale: number; subtotal: number }>;
-  payments: Array<{ amount: number }>;
+  payments: Array<{ amount: number; proofImageUrl: string | null }>;
   returns: Array<{ refundAmount: number }>;
 }
 
@@ -299,20 +300,21 @@ export function LaporanClient() {
                       <TableHead className="text-right">Total</TableHead>
                       <TableHead className="text-center">Status Bayar</TableHead>
                       <TableHead className="text-center">Status Fulfillment</TableHead>
+                      <TableHead className="text-center">Bukti</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {loading ? (
                       Array.from({ length: 6 }, (_, index) => (
                         <TableRow key={`report-sales-skeleton-${index}`}>
-                          <TableCell colSpan={9}>
+                          <TableCell colSpan={10}>
                             <Skeleton className="h-5 w-full" />
                           </TableCell>
                         </TableRow>
                       ))
                     ) : salesData.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={9} className="text-center py-8 text-gray-500">
+                        <TableCell colSpan={10} className="text-center py-8 text-gray-500">
                           Tidak ada data
                         </TableCell>
                       </TableRow>
@@ -333,6 +335,9 @@ export function LaporanClient() {
                           </TableCell>
                           <TableCell className="text-center">
                             <StatusBadge status={sale.fulfillmentStatus} />
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <ProofLink payments={sale.payments} />
                           </TableCell>
                         </TableRow>
                       ))
@@ -370,6 +375,12 @@ export function LaporanClient() {
                         <span>Subtotal {formatCurrency(sale.subtotal)}</span>
                         <span>Diskon {formatCurrency(sale.discountAmount)}</span>
                       </div>
+                      {sale.payments.some((p) => p.proofImageUrl) && (
+                        <div className="text-sm">
+                          <span className="text-gray-500">Bukti bayar: </span>
+                          <ProofLink payments={sale.payments} />
+                        </div>
+                      )}
                     </article>
                   ))
                 )}

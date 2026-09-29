@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { uploadPaymentProof } from "@/lib/supabase/storage";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -168,6 +169,14 @@ export async function POST(request: Request) {
   const hasInitialPayment = orderType === "regular" && Boolean(paymentMethod);
   const paymentStatus = hasInitialPayment ? "paid_full" : "unpaid";
 
+  let initialProofUrl: string | null = null;
+  if (proofFile) {
+    initialProofUrl = await uploadPaymentProof(proofFile);
+    if (!initialProofUrl) {
+      return NextResponse.json({ error: "Gagal mengunggah bukti pembayaran" }, { status: 500 });
+    }
+  }
+
   try {
     const result = await prisma.$transaction(
       async (tx) => {
@@ -206,7 +215,7 @@ export async function POST(request: Request) {
                 amount: total,
                 method: paymentMethod!,
                 note: paymentNote,
-                proofImageUrl: proofFile ? `proof_${Date.now()}_${proofFile.name}` : null,
+                proofImageUrl: initialProofUrl,
               },
             } : undefined,
           },
@@ -323,11 +332,12 @@ async function handleAddPayment(request: Request, saleId: string) {
       return NextResponse.json({ error: `Jumlah melebihi sisa yang harus dibayar (Rp ${remainingAmount.toLocaleString("id-ID")})` }, { status: 400 });
     }
 
-    // TODO: Upload proofFile to storage if needed
-    // For now, we'll store a placeholder
     let proofFileUrl = null;
     if (paymentData.proofFile) {
-      proofFileUrl = `proof_${Date.now()}_${paymentData.proofFile.name}`;
+      proofFileUrl = await uploadPaymentProof(paymentData.proofFile);
+      if (!proofFileUrl) {
+        return NextResponse.json({ error: "Gagal mengunggah bukti pembayaran" }, { status: 500 });
+      }
     }
 
     const payment = await prisma.payment.create({

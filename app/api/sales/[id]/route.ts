@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { uploadPaymentProof } from "@/lib/supabase/storage";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -210,6 +211,15 @@ export async function POST(
     }
 
     const { amount, method, proofImageUrl, proofFile, note } = parsed.data;
+
+    let uploadedProofUrl: string | null = null;
+    if (proofFile) {
+      uploadedProofUrl = await uploadPaymentProof(proofFile);
+      if (!uploadedProofUrl) {
+        return NextResponse.json({ error: "Gagal mengunggah bukti pembayaran" }, { status: 500 });
+      }
+    }
+
     try {
       const payment = await prisma.$transaction(async (tx) => {
         await tx.$queryRaw<Array<{ id: string }>>`SELECT "id" FROM "Sale" WHERE "id" = ${id} FOR UPDATE`;
@@ -228,7 +238,7 @@ export async function POST(
             saleId: id,
             amount,
             method,
-            proofImageUrl: proofImageUrl ?? (proofFile ? `proof_${Date.now()}_${proofFile.name}` : null),
+            proofImageUrl: proofImageUrl ?? uploadedProofUrl,
             note,
           },
         });

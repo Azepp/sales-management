@@ -16,6 +16,7 @@ import { id } from "date-fns/locale";
 import { toast } from "sonner";
 import { formatCurrency, formatRupiahInput, parseRupiah } from "@/lib/format-rupiah";
 import { StatusBadge } from "@/components/StatusBadge";
+import { ProofLink } from "@/components/ProofLink";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -725,6 +726,7 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
                       <TableHead className="hidden md:table-cell">Tipe</TableHead>
                       <TableHead className="text-center">Status Kirim</TableHead>
                       <TableHead className="text-center">Status Bayar</TableHead>
+                      <TableHead className="text-center">Bukti</TableHead>
                       <TableHead className="text-center">Aksi</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -732,14 +734,14 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
                     {loading ? (
                       Array.from({ length: 5 }, (_, index) => (
                         <TableRow key={`sales-skeleton-${index}`}>
-                          <TableCell colSpan={8}>
+                          <TableCell colSpan={9}>
                             <Skeleton className="h-5 w-full" />
                           </TableCell>
                         </TableRow>
                       ))
                     ) : sales.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                        <TableCell colSpan={9} className="text-center py-8 text-gray-500">
                           Belum ada transaksi
                         </TableCell>
                       </TableRow>
@@ -764,6 +766,9 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
                           </TableCell>
                           <TableCell className="text-center">
                             <StatusBadge status={sale.paymentStatus} />
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <ProofLink payments={sale.payments} />
                           </TableCell>
                           <TableCell className="text-center">
                             <div className="flex items-center justify-center gap-1">
@@ -854,6 +859,12 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
                         <span className="text-sm font-semibold tabular-nums">{formatCurrency(sale.total)}</span>
                         <StatusBadge status={sale.fulfillmentStatus} />
                       </div>
+                      {sale.payments.some((p) => p.proofImageUrl) && (
+                        <div className="text-sm">
+                          <span className="text-gray-500">Bukti bayar: </span>
+                          <ProofLink payments={sale.payments} />
+                        </div>
+                      )}
                       <div className="flex flex-wrap gap-2">
                         <Button size="sm" variant="outline" onClick={() => handleRowClick(sale)}>
                           Detail
