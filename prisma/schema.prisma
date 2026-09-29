@@ -1,0 +1,108 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Capital {
+  id        String   @id @default(cuid())
+  date      DateTime
+  amount    Decimal
+  note      String?
+  createdAt DateTime @default(now())
+}
+
+model Expense {
+  id        String   @id @default(cuid())
+  date      DateTime
+  amount    Decimal
+  note      String?
+  createdAt DateTime @default(now())
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  sku         String?  @unique
+  unit        String?
+  costPrice   Decimal
+  sellPrice   Decimal
+  stockQty    Int      @default(0)
+  minStock    Int      @default(5)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  stockMovements StockMovement[]
+  saleItems      SaleItem[]
+  returns        Return[]
+}
+
+model StockMovement {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  type      String
+  qty       Int
+  date      DateTime @default(now())
+  note      String?
+}
+
+model Sale {
+  id                String   @id @default(cuid())
+  invoiceNumber     String   @unique
+  date              DateTime @default(now())
+  customerName      String
+  orderType         String
+  fulfillmentStatus String
+  paymentStatus     String
+  estReadyDate      DateTime?
+  subtotal          Decimal
+  discountType      String?
+  discountValue     Decimal?
+  discountAmount    Decimal  @default(0)
+  total             Decimal
+  cancelReason      String?
+  note              String?
+  createdAt         DateTime @default(now())
+
+  items    SaleItem[]
+  payments Payment[]
+  returns  Return[]
+}
+
+model SaleItem {
+  id           String  @id @default(cuid())
+  saleId       String
+  sale         Sale    @relation(fields: [saleId], references: [id])
+  productId    String
+  product      Product @relation(fields: [productId], references: [id])
+  qty          Int
+  priceAtSale  Decimal
+  subtotal     Decimal
+}
+
+model Payment {
+  id            String   @id @default(cuid())
+  saleId        String
+  sale          Sale     @relation(fields: [saleId], references: [id])
+  date          DateTime @default(now())
+  amount        Decimal
+  method        String
+  proofImageUrl String?
+  note          String?
+}
+
+model Return {
+  id           String   @id @default(cuid())
+  saleId       String
+  sale         Sale     @relation(fields: [saleId], references: [id])
+  productId    String
+  product      Product  @relation(fields: [productId], references: [id])
+  qty          Int
+  reason       String
+  refundAmount Decimal
+  date         DateTime @default(now())
+}
