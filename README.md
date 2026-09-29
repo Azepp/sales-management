@@ -240,7 +240,7 @@ npx prisma studio       # GUI database
 
 ## Lisensi
 
-MIT License - bebas digunakan untuk keperluan pribadi maupun komersial.
+MIT License - bebas digunakan untuk keperluan pribadi maupun komersial.``
 
 ---
 
