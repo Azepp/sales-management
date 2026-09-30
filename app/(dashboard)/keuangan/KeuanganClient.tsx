@@ -234,7 +234,7 @@ export function KeuanganClient() {
               >
                 <Plus className="h-4 w-4" /> Tambah Modal
               </Button>
-              <DialogContent className="sm:max-w-md">
+              <DialogContent>
                 <DialogHeader>
                   <DialogTitle>{editingCapital ? "Edit Modal" : "Tambah Modal"}</DialogTitle>
                 </DialogHeader>
@@ -271,7 +271,7 @@ export function KeuanganClient() {
               >
                 <Plus className="h-4 w-4" /> Tambah Pengeluaran
               </Button>
-              <DialogContent className="sm:max-w-md">
+              <DialogContent>
                 <DialogHeader>
                   <DialogTitle>{editingExpense ? "Edit Pengeluaran" : "Tambah Pengeluaran"}</DialogTitle>
                 </DialogHeader>

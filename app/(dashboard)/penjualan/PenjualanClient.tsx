@@ -403,7 +403,7 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
               <Plus className="h-4 w-4" />
               Transaksi Baru
             </Button>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogContent>
               <DialogHeader>
                 <DialogTitle>Transaksi Penjualan Baru</DialogTitle>
               </DialogHeader>
@@ -585,7 +585,7 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
         {/* Edit Dialog */}
         {showEditDialog && (
           <Dialog open={true} onOpenChange={(open) => !open && setShowEditDialog(null)}>
-            <DialogContent className="max-w-2xl">
+            <DialogContent>
               <DialogHeader>
                 <DialogTitle>Edit Transaksi</DialogTitle>
               </DialogHeader>
@@ -899,7 +899,7 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
         <div>
           {selectedSale && (
             <Dialog open={true} onOpenChange={() => setSelectedSale(null)}>
-              <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+              <DialogContent>
                 <DialogHeader>
                   <DialogTitle>{selectedSale.invoiceNumber}</DialogTitle>
                   <DialogDescription>Detail transaksi {selectedSale.invoiceNumber}</DialogDescription>

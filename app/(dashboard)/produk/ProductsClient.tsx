@@ -242,7 +242,7 @@ export function ProductsClient() {
           >
             <Plus className="h-4 w-4" /> Tambah Produk
           </Button>
-          <DialogContent className="max-w-2xl">
+          <DialogContent>
             <DialogHeader>
               <DialogTitle>{editingProduct ? "Edit Produk" : "Tambah Produk"}</DialogTitle>
               <DialogDescription>Isi data produk di bawah ini. Harga dan stok akan otomatis diformat ke Rupiah.</DialogDescription>
@@ -507,7 +507,7 @@ export function ProductsClient() {
 
       {/* Edit Dialog */}
       <Dialog open={!!editingProduct} onOpenChange={(open) => !open && setEditingProduct(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Produk</DialogTitle>
             <DialogDescription>Edit data produk di bawah ini.</DialogDescription>
@@ -577,7 +577,7 @@ export function ProductsClient() {
       />
 
       <Dialog open={!!stockDialogProduct} onOpenChange={(open) => !open && setStockDialogProduct(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Mutasi Stok</DialogTitle>
             <DialogDescription>

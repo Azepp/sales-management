@@ -34,7 +34,7 @@ export function ConfirmDialog({ open, onOpenChange, title, description, confirmT
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent>
         <DialogHeader>
           <div className="flex items-center gap-2 mb-2">
             <AlertTriangle className="h-5 w-5 text-yellow-500" />
