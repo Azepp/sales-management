@@ -5,7 +5,7 @@ import { z } from "zod";
 
 const productSchema = z.object({
   name: z.string().trim().min(1, "Nama produk wajib diisi").max(120),
-  sku: z.string().max(80).optional(),
+  sku: z.string().trim().max(80).transform((value) => value || null).optional(),
   unit: z.string().max(32).optional(),
   costPrice: z.number().finite().min(0, "Harga modal tidak boleh negatif").max(1_000_000_000_000),
   sellPrice: z.number().finite().min(0, "Harga jual tidak boleh negatif").max(1_000_000_000_000),
