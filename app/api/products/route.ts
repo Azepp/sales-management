@@ -73,17 +73,29 @@ export async function POST(request: Request) {
   }
 
   const { initialStock, ...productData } = parsed.data;
-  const product = await prisma.$transaction(async (tx) => {
-    const created = await tx.product.create({
-      data: { ...productData, stockQty: initialStock },
-    });
-    if (initialStock > 0) {
-      await tx.stockMovement.create({
-        data: { productId: created.id, type: "in", qty: initialStock, note: "Stok awal produk" },
+  try {
+    const product = await prisma.$transaction(async (tx) => {
+      const created = await tx.product.create({
+        data: { ...productData, stockQty: initialStock },
       });
-    }
-    return created;
-  });
+      if (initialStock > 0) {
+        await tx.stockMovement.create({
+          data: { productId: created.id, type: "in", qty: initialStock, note: "Stok awal produk" },
+        });
+      }
+      return created;
+    }, { maxWait: 10000, timeout: 15000 });
 
-  return NextResponse.json(product, { status: 201 });
+    return NextResponse.json(product, { status: 201 });
+  } catch (error) {
+    console.error("Error creating product:", error);
+    const code = typeof error === "object" && error !== null && "code" in error ? error.code : null;
+    if (code === "P2002") {
+      return NextResponse.json({ error: "SKU sudah digunakan oleh produk lain." }, { status: 409 });
+    }
+    const message = process.env.NODE_ENV === "development" && error instanceof Error
+      ? error.message
+      : "Gagal menyimpan produk. Periksa log server untuk detail.";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }

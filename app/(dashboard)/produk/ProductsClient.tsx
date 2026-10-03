@@ -200,10 +200,8 @@ export function ProductsClient() {
     const { name, value, type } = e.target;
     if (type === "checkbox") {
       setFormData((prev) => ({ ...prev, [name]: (e.target as HTMLInputElement).checked }));
-    } else if (name === "costPrice" || name === "sellPrice" || name === "minStock" || name === "initialStock") {
+    } else if (name === "costPrice" || name === "sellPrice") {
       setFormData((prev) => ({ ...prev, [name]: formatRupiahInput(value) }));
-    } else if (type === "number") {
-      setFormData((prev) => ({ ...prev, [name]: parseFloat(value) || 0 }));
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
@@ -245,7 +243,7 @@ export function ProductsClient() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{editingProduct ? "Edit Produk" : "Tambah Produk"}</DialogTitle>
-              <DialogDescription>Isi data produk di bawah ini. Harga dan stok akan otomatis diformat ke Rupiah.</DialogDescription>
+              <DialogDescription>Isi data produk di bawah ini. Harga akan otomatis diformat ke Rupiah.</DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4 py-4">
               <div className="space-y-2">
@@ -278,13 +276,13 @@ export function ProductsClient() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-gray-700">{editingProduct ? "Stok saat ini *" : "Stok awal *"}</label>
-                  <Input type="text" min="0" step="100" placeholder="Rp 0" name="initialStock" value={formData.initialStock} onChange={handleInputChange} inputMode="numeric" className={errors.initialStock ? "border-red-500" : ""} />
+                  <Input type="number" min="0" step="1" placeholder="0" name="initialStock" value={formData.initialStock} onChange={handleInputChange} className={errors.initialStock ? "border-red-500" : ""} />
                   {errors.initialStock && <p className="text-sm text-red-500">{errors.initialStock}</p>}
                   <p className="text-xs text-gray-500">{editingProduct ? "Perubahan dicatat pada riwayat mutasi." : "Jumlah stok saat produk dibuat."}</p>
                 </div>
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-gray-700">Min Stok (Notifikasi)</label>
-                  <Input type="text" min="0" name="minStock" value={formData.minStock} onChange={handleInputChange} placeholder="5" inputMode="numeric" className={errors.minStock ? "border-red-500" : ""} />
+                  <Input type="number" min="0" step="1" name="minStock" value={formData.minStock} onChange={handleInputChange} placeholder="5" className={errors.minStock ? "border-red-500" : ""} />
                   {errors.minStock && <p className="text-sm text-red-500">{errors.minStock}</p>}
                 </div>
               </div>
