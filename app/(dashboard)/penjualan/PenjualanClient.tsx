@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,6 +19,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { ProofLink } from "@/components/ProofLink";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { FilterPanel, FilterTrigger } from "@/components/FilterPanel";
 
 interface Product {
   id: string;
@@ -102,6 +103,7 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
   const [fulfillmentFilter, setFulfillmentFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState("all");
   const [dateRange, setDateRange] = useState({ start: "", end: "" });
+  const [filterOpen, setFilterOpen] = useState(false);
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [activeTab, setActiveTab] = useState<"detail" | "payments">("detail");
 
@@ -498,259 +500,262 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
             <h1 className="text-2xl font-bold text-gray-900">Penjualan</h1>
             <p className="text-gray-500">Kelola transaksi penjualan, pre-order, pembayaran & retur</p>
           </div>
-          <Dialog
-            open={showCreateDialog}
-            onOpenChange={(open) => {
-              if (!open && createSubmitting) return;
-              setShowCreateDialog(open);
-              if (!open) setEditSaleId(null);
-            }}
-          >
-            <Button
-              type="button"
-              onClick={() => {
-                setEditSaleId(null);
-                setCreateForm({
-                  customerName: "",
-                  orderType: "regular",
-                  paymentStatus: "unpaid",
-                  fulfillmentStatus: "pending",
-                  items: [{ productId: "", qty: "1", priceAtSale: "" }],
-                  discountType: "percent",
-                  discountValue: "",
-                  note: "",
-                  payment: { method: "cash", proofFile: null, note: "" },
-                });
-                setCreateErrors({});
-                setShowCreateDialog(true);
+          <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">
+            <FilterTrigger onClick={() => setFilterOpen(true)} />
+            <Dialog
+              open={showCreateDialog}
+              onOpenChange={(open) => {
+                if (!open && createSubmitting) return;
+                setShowCreateDialog(open);
+                if (!open) setEditSaleId(null);
               }}
             >
-              <Plus className="h-4 w-4" />
-              Transaksi Baru
-            </Button>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{editSaleId ? "Edit Transaksi" : "Transaksi Penjualan Baru"}</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleCreateSubmit} className="space-y-4 py-4">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700">Nama Customer *</label>
-                    <Input placeholder="Nama customer" name="customerName" value={createForm.customerName} onChange={handleCreateChange} className={createErrors.customerName ? "border-red-500" : ""} />
-                    {createErrors.customerName && <p className="text-sm text-red-500">{createErrors.customerName}</p>}
-                  </div>
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700">Tipe Order *</label>
-                    <Select
-                      value={createForm.orderType}
-                      onValueChange={(v: string | null) =>
-                        setCreateForm((prev) => {
-                          const nextOrderType = (v || "regular") as "regular" | "preorder";
-                          return {
-                            ...prev,
-                            orderType: nextOrderType,
-                            fulfillmentStatus: nextOrderType === "regular" && prev.fulfillmentStatus === "pending" ? "ready" : prev.fulfillmentStatus,
-                          };
-                        })
-                      }
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Pilih tipe" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="regular">Reguler (Stok kurangi, langsung Siap)</SelectItem>
-                        <SelectItem value="preorder">Pre-Order (Stok kurangi, status Pending)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {editSaleId && (
+              <Button
+                type="button"
+                onClick={() => {
+                  setEditSaleId(null);
+                  setCreateForm({
+                    customerName: "",
+                    orderType: "regular",
+                    paymentStatus: "unpaid",
+                    fulfillmentStatus: "pending",
+                    items: [{ productId: "", qty: "1", priceAtSale: "" }],
+                    discountType: "percent",
+                    discountValue: "",
+                    note: "",
+                    payment: { method: "cash", proofFile: null, note: "" },
+                  });
+                  setCreateErrors({});
+                  setShowCreateDialog(true);
+                }}
+              >
+                <Plus className="h-4 w-4" />
+                Transaksi Baru
+              </Button>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{editSaleId ? "Edit Transaksi" : "Transaksi Penjualan Baru"}</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleCreateSubmit} className="space-y-4 py-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
-                      <label className="block text-sm font-medium text-gray-700">Status Bayar *</label>
-                      <Select value={createForm.paymentStatus} onValueChange={(v: string | null) => setCreateForm((prev) => ({ ...prev, paymentStatus: (v || "unpaid") as "unpaid" | "dp" | "paid_full" }))}>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Pilih status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="unpaid">Belum Bayar</SelectItem>
-                          <SelectItem value="dp">DP (Belum Lunas)</SelectItem>
-                          <SelectItem value="paid_full">Lunas</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <label className="block text-sm font-medium text-gray-700">Nama Customer *</label>
+                      <Input placeholder="Nama customer" name="customerName" value={createForm.customerName} onChange={handleCreateChange} className={createErrors.customerName ? "border-red-500" : ""} />
+                      {createErrors.customerName && <p className="text-sm text-red-500">{createErrors.customerName}</p>}
                     </div>
-                  )}
-                  {editSaleId && (
                     <div className="space-y-2">
-                      <label className="block text-sm font-medium text-gray-700">Status Kirim *</label>
+                      <label className="block text-sm font-medium text-gray-700">Tipe Order *</label>
                       <Select
-                        value={createForm.fulfillmentStatus}
-                        onValueChange={(v: string | null) => setCreateForm((prev) => ({ ...prev, fulfillmentStatus: (v || "pending") as "pending" | "ready" | "delivered" | "cancelled" }))}
+                        value={createForm.orderType}
+                        onValueChange={(v: string | null) =>
+                          setCreateForm((prev) => {
+                            const nextOrderType = (v || "regular") as "regular" | "preorder";
+                            return {
+                              ...prev,
+                              orderType: nextOrderType,
+                              fulfillmentStatus: nextOrderType === "regular" && prev.fulfillmentStatus === "pending" ? "ready" : prev.fulfillmentStatus,
+                            };
+                          })
+                        }
                       >
                         <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Pilih status" />
+                          <SelectValue placeholder="Pilih tipe" />
                         </SelectTrigger>
                         <SelectContent>
-                          {(createForm.orderType === "preorder" || createForm.fulfillmentStatus === "pending") && <SelectItem value="pending">Pending</SelectItem>}
-                          <SelectItem value="ready">Siap</SelectItem>
-                          <SelectItem value="delivered">Diambil</SelectItem>
-                          <SelectItem value="cancelled">Batal</SelectItem>
+                          <SelectItem value="regular">Reguler (Stok kurangi, langsung Siap)</SelectItem>
+                          <SelectItem value="preorder">Pre-Order (Stok kurangi, status Pending)</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
-                  )}
-                </div>
-
-                <div className="border-t pt-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <label className="block text-sm font-medium text-gray-700">Item Produk</label>
-                    <Button type="button" variant="outline" size="sm" onClick={addItem}>
-                      <Plus className="h-4 w-4 mr-1" /> Tambah Item
-                    </Button>
-                  </div>
-                  <div className="space-y-2">
-                    {createForm.items.map((item, index) => (
-                      <div key={index} className="flex gap-2 items-end">
-                        <div className="flex-1 min-w-0">
-                          <label className="block text-sm font-medium text-gray-700">Produk *</label>
-                          <Select value={item.productId} onValueChange={(v: string | null) => handleProductSelect(index, v || "")}>
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Pilih produk">{item.productId && products.find((p) => p.id === item.productId)?.name}</SelectValue>
-                            </SelectTrigger>
-                            <SelectContent>
-                              {products.map((p) => (
-                                <SelectItem key={p.id} value={p.id}>
-                                  {p.name} {p.sku && `(${p.sku})`} - {formatCurrency(p.sellPrice)} (Stok: {p.stockQty})
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          {createErrors.items && <p className="text-sm text-red-500">{createErrors.items}</p>}
-                        </div>
-                        <div className="w-20">
-                          <label className="block text-sm font-medium text-gray-700">Qty *</label>
-                          <Input type="text" min="1" value={item.qty} onChange={(e) => handleItemChange(index, "qty", e.target.value)} placeholder="1" inputMode="numeric" className={`w-full ${createErrors.qty ? "border-red-500" : ""}`} />
-                          {createErrors.qty && <p className="text-sm text-red-500">{createErrors.qty}</p>}
-                        </div>
-                        <div className="w-36">
-                          <label className="block text-sm font-medium text-gray-700">Harga *</label>
-                          <Input
-                            type="text"
-                            min="1"
-                            value={item.priceAtSale}
-                            onChange={(e) => handleItemChange(index, "priceAtSale", formatRupiahInput(e.target.value))}
-                            placeholder="Harga"
-                            inputMode="numeric"
-                            className={`w-full ${createErrors.price ? "border-red-500" : ""}`}
-                            readOnly={!editSaleId}
-                          />
-                          {createErrors.price && <p className="text-sm text-red-500">{createErrors.price}</p>}
-                        </div>
-                        <div className="w-28 font-mono text-right text-gray-600 pt-5">{item.qty && item.priceAtSale ? formatCurrency(parseRupiah(item.qty) * parseRupiah(item.priceAtSale)) : "Rp 0"}</div>
-                        <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(index)} disabled={createForm.items.length === 1} className="text-red-600">
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-3 border-t pt-4">
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700">Tipe Diskon</label>
-                    <Select value={createForm.discountType} onValueChange={(v: string | null) => setCreateForm((prev) => ({ ...prev, discountType: (v || "percent") as "percent" | "fixed" }))}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Pilih tipe" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="percent">Persen (%)</SelectItem>
-                        <SelectItem value="fixed">Nominal (Rp)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700">Nilai Diskon</label>
-                    {createForm.discountType === "percent" ? (
-                      <div className="flex flex-wrap gap-2">
-                        {discountPercentOptions.map((p) => (
-                          <Button key={p} type="button" variant={createForm.discountValue === String(p) ? "default" : "outline"} size="sm" className="w-17.5" onClick={() => setCreateForm((prev) => ({ ...prev, discountValue: String(p) }))}>
-                            {p}%
-                          </Button>
-                        ))}
-                      </div>
-                    ) : (
-                      <Input type="text" min="0" value={createForm.discountValue} onChange={(e) => setCreateForm((prev) => ({ ...prev, discountValue: formatRupiahInput(e.target.value) }))} placeholder="Rp 0" inputMode="numeric" />
-                    )}
-                  </div>
-                  <div className="flex items-end">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Total Diskon</label>
-                    <div className="w-full bg-gray-50 px-3 py-2 rounded-md text-right font-mono">{formatCurrency(discountAmount)}</div>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">Catatan</label>
-                  <Input placeholder="Catatan tambahan" name="note" value={createForm.note} onChange={handleCreateChange} />
-                </div>
-
-                {!editSaleId && createForm.orderType === "regular" && (
-                  <div className="border-t pt-4">
-                    <h3 className="text-lg font-semibold mb-4">Pembayaran</h3>
-                    <div className="grid gap-4 sm:grid-cols-2">
+                    {editSaleId && (
                       <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">Metode *</label>
-                        <Select value={createForm.payment.method} onValueChange={(v: string | null) => setCreateForm((prev) => ({ ...prev, payment: { ...prev.payment, method: (v || "cash") as "cash" | "transfer" | "qris" | "lainnya" } }))}>
+                        <label className="block text-sm font-medium text-gray-700">Status Bayar *</label>
+                        <Select value={createForm.paymentStatus} onValueChange={(v: string | null) => setCreateForm((prev) => ({ ...prev, paymentStatus: (v || "unpaid") as "unpaid" | "dp" | "paid_full" }))}>
                           <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Pilih metode" />
+                            <SelectValue placeholder="Pilih status" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="cash">Tunai</SelectItem>
-                            <SelectItem value="transfer">Transfer</SelectItem>
-                            <SelectItem value="qris">QRIS</SelectItem>
-                            <SelectItem value="lainnya">Lainnya</SelectItem>
+                            <SelectItem value="unpaid">Belum Bayar</SelectItem>
+                            <SelectItem value="dp">DP (Belum Lunas)</SelectItem>
+                            <SelectItem value="paid_full">Lunas</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
+                    )}
+                    {editSaleId && (
                       <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">Bukti Bayar (opsional)</label>
-                        <Input
-                          type="file"
-                          accept="image/*,application/pdf"
-                          name="payment.proofFile"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              setCreateForm((prev) => ({ ...prev, payment: { ...prev.payment, proofFile: file } }));
-                            }
-                          }}
-                        />
-                        <p className="text-xs text-gray-500">Format: JPG, PNG, PDF (max 5MB)</p>
+                        <label className="block text-sm font-medium text-gray-700">Status Kirim *</label>
+                        <Select
+                          value={createForm.fulfillmentStatus}
+                          onValueChange={(v: string | null) => setCreateForm((prev) => ({ ...prev, fulfillmentStatus: (v || "pending") as "pending" | "ready" | "delivered" | "cancelled" }))}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Pilih status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(createForm.orderType === "preorder" || createForm.fulfillmentStatus === "pending") && <SelectItem value="pending">Pending</SelectItem>}
+                            <SelectItem value="ready">Siap</SelectItem>
+                            <SelectItem value="delivered">Diambil</SelectItem>
+                            <SelectItem value="cancelled">Batal</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
+                    )}
+                  </div>
+
+                  <div className="border-t pt-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="block text-sm font-medium text-gray-700">Item Produk</label>
+                      <Button type="button" variant="outline" size="sm" onClick={addItem}>
+                        <Plus className="h-4 w-4 mr-1" /> Tambah Item
+                      </Button>
                     </div>
                     <div className="space-y-2">
-                      <label className="block text-sm font-medium text-gray-700">Catatan Pembayaran</label>
-                      <Input placeholder="Catatan" name="payment.note" value={createForm.payment.note} onChange={handleCreateChange} />
+                      {createForm.items.map((item, index) => (
+                        <div key={index} className="flex gap-2 items-end">
+                          <div className="flex-1 min-w-0">
+                            <label className="block text-sm font-medium text-gray-700">Produk *</label>
+                            <Select value={item.productId} onValueChange={(v: string | null) => handleProductSelect(index, v || "")}>
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Pilih produk">{item.productId && products.find((p) => p.id === item.productId)?.name}</SelectValue>
+                              </SelectTrigger>
+                              <SelectContent>
+                                {products.map((p) => (
+                                  <SelectItem key={p.id} value={p.id}>
+                                    {p.name} {p.sku && `(${p.sku})`} - {formatCurrency(p.sellPrice)} (Stok: {p.stockQty})
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {createErrors.items && <p className="text-sm text-red-500">{createErrors.items}</p>}
+                          </div>
+                          <div className="w-20">
+                            <label className="block text-sm font-medium text-gray-700">Qty *</label>
+                            <Input type="text" min="1" value={item.qty} onChange={(e) => handleItemChange(index, "qty", e.target.value)} placeholder="1" inputMode="numeric" className={`w-full ${createErrors.qty ? "border-red-500" : ""}`} />
+                            {createErrors.qty && <p className="text-sm text-red-500">{createErrors.qty}</p>}
+                          </div>
+                          <div className="w-36">
+                            <label className="block text-sm font-medium text-gray-700">Harga *</label>
+                            <Input
+                              type="text"
+                              min="1"
+                              value={item.priceAtSale}
+                              onChange={(e) => handleItemChange(index, "priceAtSale", formatRupiahInput(e.target.value))}
+                              placeholder="Harga"
+                              inputMode="numeric"
+                              className={`w-full ${createErrors.price ? "border-red-500" : ""}`}
+                              readOnly={!editSaleId}
+                            />
+                            {createErrors.price && <p className="text-sm text-red-500">{createErrors.price}</p>}
+                          </div>
+                          <div className="w-28 font-mono text-right text-gray-600 pt-5">{item.qty && item.priceAtSale ? formatCurrency(parseRupiah(item.qty) * parseRupiah(item.priceAtSale)) : "Rp 0"}</div>
+                          <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(index)} disabled={createForm.items.length === 1} className="text-red-600">
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                )}
 
-                <div className="border-t pt-4 flex justify-between items-center">
-                  <div className="text-right">
-                    <div className="text-sm text-gray-500">Subtotal</div>
-                    <div className="text-xl font-bold font-mono">{formatCurrency(subtotal)}</div>
+                  <div className="grid gap-4 sm:grid-cols-3 border-t pt-4">
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700">Tipe Diskon</label>
+                      <Select value={createForm.discountType} onValueChange={(v: string | null) => setCreateForm((prev) => ({ ...prev, discountType: (v || "percent") as "percent" | "fixed" }))}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Pilih tipe" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="percent">Persen (%)</SelectItem>
+                          <SelectItem value="fixed">Nominal (Rp)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700">Nilai Diskon</label>
+                      {createForm.discountType === "percent" ? (
+                        <div className="flex flex-wrap gap-2">
+                          {discountPercentOptions.map((p) => (
+                            <Button key={p} type="button" variant={createForm.discountValue === String(p) ? "default" : "outline"} size="sm" className="w-17.5" onClick={() => setCreateForm((prev) => ({ ...prev, discountValue: String(p) }))}>
+                              {p}%
+                            </Button>
+                          ))}
+                        </div>
+                      ) : (
+                        <Input type="text" min="0" value={createForm.discountValue} onChange={(e) => setCreateForm((prev) => ({ ...prev, discountValue: formatRupiahInput(e.target.value) }))} placeholder="Rp 0" inputMode="numeric" />
+                      )}
+                    </div>
+                    <div className="flex items-end">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Total Diskon</label>
+                      <div className="w-full bg-gray-50 px-3 py-2 rounded-md text-right font-mono">{formatCurrency(discountAmount)}</div>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-sm text-gray-500">Total</div>
-                    <div className="text-2xl font-bold font-mono text-green-600">{formatCurrency(total)}</div>
-                  </div>
-                </div>
 
-                <DialogFooter>
-                  <Button type="submit" loading={createSubmitting} className="w-full sm:w-auto">
-                    {editSaleId ? "Simpan Perubahan" : "Buat Transaksi"}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">Catatan</label>
+                    <Input placeholder="Catatan tambahan" name="note" value={createForm.note} onChange={handleCreateChange} />
+                  </div>
+
+                  {!editSaleId && createForm.orderType === "regular" && (
+                    <div className="border-t pt-4">
+                      <h3 className="text-lg font-semibold mb-4">Pembayaran</h3>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <label className="block text-sm font-medium text-gray-700">Metode *</label>
+                          <Select value={createForm.payment.method} onValueChange={(v: string | null) => setCreateForm((prev) => ({ ...prev, payment: { ...prev.payment, method: (v || "cash") as "cash" | "transfer" | "qris" | "lainnya" } }))}>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Pilih metode" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="cash">Tunai</SelectItem>
+                              <SelectItem value="transfer">Transfer</SelectItem>
+                              <SelectItem value="qris">QRIS</SelectItem>
+                              <SelectItem value="lainnya">Lainnya</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="block text-sm font-medium text-gray-700">Bukti Bayar (opsional)</label>
+                          <Input
+                            type="file"
+                            accept="image/*,application/pdf"
+                            name="payment.proofFile"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                setCreateForm((prev) => ({ ...prev, payment: { ...prev.payment, proofFile: file } }));
+                              }
+                            }}
+                          />
+                          <p className="text-xs text-gray-500">Format: JPG, PNG, PDF (max 5MB)</p>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700">Catatan Pembayaran</label>
+                        <Input placeholder="Catatan" name="payment.note" value={createForm.payment.note} onChange={handleCreateChange} />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="border-t pt-4 flex justify-between items-center">
+                    <div className="text-right">
+                      <div className="text-sm text-gray-500">Subtotal</div>
+                      <div className="text-xl font-bold font-mono">{formatCurrency(subtotal)}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm text-gray-500">Total</div>
+                      <div className="text-2xl font-bold font-mono text-green-600">{formatCurrency(total)}</div>
+                    </div>
+                  </div>
+
+                  <DialogFooter>
+                    <Button type="submit" loading={createSubmitting} className="w-full sm:w-auto">
+                      {editSaleId ? "Simpan Perubahan" : "Buat Transaksi"}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         {/* Delete Dialog */}
@@ -764,106 +769,105 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
         />
       </div>
 
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>Filter & Pencarian</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="grid items-end gap-4 md:grid-cols-2 xl:grid-cols-6">
-              <div className="space-y-1 md:col-span-2 xl:col-span-2">
-                <label htmlFor="sales-customer-search" className="text-xs font-medium text-gray-600">
-                  Cari customer
-                </label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input id="sales-customer-search" placeholder="Nama customer" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <label htmlFor="sales-order-filter" className="text-xs font-medium text-gray-600">
-                  Tipe order
-                </label>
-                <Select value={orderTypeFilter} onValueChange={(v: string | null) => setOrderTypeFilter(v || "all")}>
-                  <SelectTrigger id="sales-order-filter" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Semua</SelectItem>
-                    <SelectItem value="regular">Reguler</SelectItem>
-                    <SelectItem value="preorder">Pre-Order</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <label htmlFor="sales-fulfillment-filter" className="text-xs font-medium text-gray-600">
-                  Status fulfillment
-                </label>
-                <Select value={fulfillmentFilter} onValueChange={(v: string | null) => setFulfillmentFilter(v || "all")}>
-                  <SelectTrigger id="sales-fulfillment-filter" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Semua</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="ready">Siap</SelectItem>
-                    <SelectItem value="delivered">Diambil</SelectItem>
-                    <SelectItem value="cancelled">Batal</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <label htmlFor="sales-payment-filter" className="text-xs font-medium text-gray-600">
-                  Status pembayaran
-                </label>
-                <Select value={paymentFilter} onValueChange={(v: string | null) => setPaymentFilter(v || "all")}>
-                  <SelectTrigger id="sales-payment-filter" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Semua</SelectItem>
-                    <SelectItem value="unpaid">Belum Bayar</SelectItem>
-                    <SelectItem value="dp">DP</SelectItem>
-                    <SelectItem value="paid_full">Lunas</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-2 md:col-span-2 xl:col-span-2">
-                <div className="space-y-1">
-                  <label className="block text-xs font-medium text-gray-500">Dari</label>
-                  <Input type="date" value={dateRange.start} onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })} className="w-full" />
-                </div>
-                <div className="space-y-1">
-                  <label className="block text-xs font-medium text-gray-500">Sampai</label>
-                  <Input type="date" value={dateRange.end} onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })} className="w-full" />
-                </div>
+      <FilterPanel
+        className="mt-6"
+        title="Filter & Pencarian"
+        open={filterOpen}
+        onOpenChange={setFilterOpen}
+        onClear={() => {
+          setSearch("");
+          setOrderTypeFilter("all");
+          setFulfillmentFilter("all");
+          setPaymentFilter("all");
+          setDateRange({ start: "", end: "" });
+        }}
+      >
+        <div className="space-y-4">
+          <div className="grid items-end gap-4 md:grid-cols-2 xl:grid-cols-6">
+            <div className="space-y-1 md:col-span-2 xl:col-span-2">
+              <label className="text-xs font-medium text-gray-600">Cari customer</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input placeholder="Nama customer" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
               </div>
             </div>
-
-            <div className="flex flex-wrap gap-2 border-t pt-4">
-              {shortcutFilters.map((filter) => {
-                const isActive = activeShortcutFilter === filter.key;
-                return (
-                  <Button
-                    key={filter.key}
-                    variant={isActive ? "default" : "outline"}
-                    size="sm"
-                    aria-pressed={isActive}
-                    className={!isActive ? "text-muted-foreground" : undefined}
-                    onClick={() => {
-                      setFulfillmentFilter(isActive ? "all" : filter.fulfillment || "all");
-                      setPaymentFilter(isActive ? "all" : filter.payment || "all");
-                    }}
-                  >
-                    {isActive && <Check className="h-4 w-4" aria-hidden="true" />}
-                    {filter.label}
-                  </Button>
-                );
-              })}
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-600">Tipe order</label>
+              <Select value={orderTypeFilter} onValueChange={(v: string | null) => setOrderTypeFilter(v || "all")}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua</SelectItem>
+                  <SelectItem value="regular">Reguler</SelectItem>
+                  <SelectItem value="preorder">Pre-Order</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-600">Status fulfillment</label>
+              <Select value={fulfillmentFilter} onValueChange={(v: string | null) => setFulfillmentFilter(v || "all")}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="ready">Siap</SelectItem>
+                  <SelectItem value="delivered">Diambil</SelectItem>
+                  <SelectItem value="cancelled">Batal</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-600">Status pembayaran</label>
+              <Select value={paymentFilter} onValueChange={(v: string | null) => setPaymentFilter(v || "all")}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua</SelectItem>
+                  <SelectItem value="unpaid">Belum Bayar</SelectItem>
+                  <SelectItem value="dp">DP</SelectItem>
+                  <SelectItem value="paid_full">Lunas</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-2 md:col-span-2 xl:col-span-2">
+              <div className="space-y-1">
+                <label className="block text-xs font-medium text-gray-500">Dari</label>
+                <Input type="date" value={dateRange.start} onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })} className="w-full" />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-xs font-medium text-gray-500">Sampai</label>
+                <Input type="date" value={dateRange.end} onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })} className="w-full" />
+              </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
+
+          <div className="flex flex-wrap gap-2 border-t pt-4">
+            {shortcutFilters.map((filter) => {
+              const isActive = activeShortcutFilter === filter.key;
+              return (
+                <Button
+                  key={filter.key}
+                  variant={isActive ? "default" : "outline"}
+                  size="sm"
+                  aria-pressed={isActive}
+                  className={!isActive ? "text-muted-foreground" : undefined}
+                  onClick={() => {
+                    setFulfillmentFilter(isActive ? "all" : filter.fulfillment || "all");
+                    setPaymentFilter(isActive ? "all" : filter.payment || "all");
+                  }}
+                >
+                  {isActive && <Check className="h-4 w-4" aria-hidden="true" />}
+                  {filter.label}
+                </Button>
+              );
+            })}
+          </div>
+        </div>
+      </FilterPanel>
 
       <div className="mt-6 grid gap-6">
         <div className="">

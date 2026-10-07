@@ -213,9 +213,8 @@ export function DashboardClient({ todayRevenue, monthExpenseTotal, monthCapitalT
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Invoice</TableHead>
+                  <TableHead>Pelanggan</TableHead>
                   <TableHead>Tanggal</TableHead>
-                  <TableHead>Customer</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Total</TableHead>
                 </TableRow>
@@ -223,20 +222,20 @@ export function DashboardClient({ todayRevenue, monthExpenseTotal, monthCapitalT
               <TableBody>
                 {recentSales.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="py-8 text-center text-gray-500">
+                    <TableCell colSpan={4} className="py-8 text-center text-gray-500">
                       Belum ada transaksi
                     </TableCell>
                   </TableRow>
                 ) : (
                   recentSales.map((sale) => (
                     <TableRow key={sale.id}>
-                      <TableCell className="font-mono font-medium">
-                        <Link href={`/penjualan?saleId=${sale.id}`} className="hover:text-primary">
-                          {sale.invoiceNumber}
+                      <TableCell>
+                        <Link href={`/penjualan?saleId=${sale.id}`} className="block hover:text-primary">
+                          <span className="block truncate font-semibold text-gray-900">{sale.customerName}</span>
+                          <span className="block truncate font-mono text-xs text-muted-foreground">{sale.invoiceNumber}</span>
                         </Link>
                       </TableCell>
                       <TableCell>{formatDate(sale.date)}</TableCell>
-                      <TableCell>{sale.customerName}</TableCell>
                       <TableCell>
                         <StatusBadge status={sale.paymentStatus} />
                       </TableCell>
@@ -254,9 +253,9 @@ export function DashboardClient({ todayRevenue, monthExpenseTotal, monthCapitalT
               recentSales.map((sale) => (
                 <Link key={`mobile-${sale.id}`} href={`/penjualan?saleId=${sale.id}`} className="flex items-start justify-between gap-3 px-4 py-4">
                   <span className="min-w-0">
-                    <span className="block truncate font-mono text-sm font-medium">{sale.invoiceNumber}</span>
-                    <span className="mt-1 block truncate text-xs text-muted-foreground">
-                      {sale.customerName} · {formatDate(sale.date)}
+                    <span className="block truncate font-semibold text-gray-900">{sale.customerName}</span>
+                    <span className="mt-1 block truncate font-mono text-xs text-muted-foreground">
+                      {sale.invoiceNumber} · {formatDate(sale.date)}
                     </span>
                     <span className="mt-2 block">
                       <StatusBadge status={sale.paymentStatus} />

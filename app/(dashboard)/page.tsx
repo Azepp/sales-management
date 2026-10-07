@@ -37,7 +37,10 @@ export default async function DashboardPage() {
     }),
   ]);
 
-  const lowStock = lowStockProducts.filter((p) => p.stockQty <= p.minStock).slice(0, 5);
+  const lowStock = lowStockProducts
+    .filter((p) => p.stockQty <= p.minStock)
+    .slice(0, 5)
+    .map((p) => ({ id: p.id, name: p.name, stockQty: p.stockQty, minStock: p.minStock }));
 
   const readyOrdersTyped = readyOrders.map((o) => ({ ...o, total: Number(o.total) }));
   const recentSalesTyped = recentSales.map((sale) => ({

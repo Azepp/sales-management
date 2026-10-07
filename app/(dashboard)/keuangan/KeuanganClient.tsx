@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FilterPanel, FilterTrigger } from "@/components/FilterPanel";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { toast } from "sonner";
@@ -41,6 +42,7 @@ export function KeuanganClient() {
   const [capitalEnd, setCapitalEnd] = useState("");
   const [expenseStart, setExpenseStart] = useState("");
   const [expenseEnd, setExpenseEnd] = useState("");
+  const [filterOpen, setFilterOpen] = useState(false);
 
   const [editingCapital, setEditingCapital] = useState<Capital | null>(null);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -223,7 +225,8 @@ export function KeuanganClient() {
           <h1 className="text-2xl font-bold text-gray-900">Keuangan</h1>
           <p className="text-gray-500">Kelola modal dan pengeluaran usaha</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex w-full items-center justify-between gap-2 sm:w-auto">
+          <FilterTrigger onClick={() => setFilterOpen(true)} />
           {activeTab === "capital" && (
             <Dialog open={capitalDialogOpen} onOpenChange={setCapitalDialogOpen}>
               <Button
@@ -327,27 +330,27 @@ export function KeuanganClient() {
         </TabsList>
 
         <TabsContent value="capital" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Filter Modal</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 sm:grid-cols-2 sm:max-w-2xl">
-                <div className="space-y-1">
-                  <label htmlFor="capital-start" className="text-xs font-medium text-gray-600">
-                    Tanggal mulai
-                  </label>
-                  <Input id="capital-start" type="date" value={capitalStart} onChange={(e) => setCapitalStart(e.target.value)} />
-                </div>
-                <div className="space-y-1">
-                  <label htmlFor="capital-end" className="text-xs font-medium text-gray-600">
-                    Tanggal akhir
-                  </label>
-                  <Input id="capital-end" type="date" value={capitalEnd} onChange={(e) => setCapitalEnd(e.target.value)} />
-                </div>
+          <FilterPanel
+            className="mb-4"
+            title="Filter Modal"
+            open={filterOpen}
+            onOpenChange={setFilterOpen}
+            onClear={() => {
+              setCapitalStart("");
+              setCapitalEnd("");
+            }}
+          >
+            <div className="grid gap-4 sm:grid-cols-2 sm:max-w-2xl">
+              <div className="space-y-1">
+                <label className="block text-xs font-medium text-gray-600">Tanggal mulai</label>
+                <Input type="date" value={capitalStart} onChange={(e) => setCapitalStart(e.target.value)} />
               </div>
-            </CardContent>
-          </Card>
+              <div className="space-y-1">
+                <label className="block text-xs font-medium text-gray-600">Tanggal akhir</label>
+                <Input type="date" value={capitalEnd} onChange={(e) => setCapitalEnd(e.target.value)} />
+              </div>
+            </div>
+          </FilterPanel>
 
           <Card>
             <CardContent className="p-0">
@@ -435,27 +438,27 @@ export function KeuanganClient() {
         </TabsContent>
 
         <TabsContent value="expense" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Filter Pengeluaran</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 sm:grid-cols-2 sm:max-w-2xl">
-                <div className="space-y-1">
-                  <label htmlFor="expense-start" className="text-xs font-medium text-gray-600">
-                    Tanggal mulai
-                  </label>
-                  <Input id="expense-start" type="date" value={expenseStart} onChange={(e) => setExpenseStart(e.target.value)} />
-                </div>
-                <div className="space-y-1">
-                  <label htmlFor="expense-end" className="text-xs font-medium text-gray-600">
-                    Tanggal akhir
-                  </label>
-                  <Input id="expense-end" type="date" value={expenseEnd} onChange={(e) => setExpenseEnd(e.target.value)} />
-                </div>
+          <FilterPanel
+            className="mb-4"
+            title="Filter Pengeluaran"
+            open={filterOpen}
+            onOpenChange={setFilterOpen}
+            onClear={() => {
+              setExpenseStart("");
+              setExpenseEnd("");
+            }}
+          >
+            <div className="grid gap-4 sm:grid-cols-2 sm:max-w-2xl">
+              <div className="space-y-1">
+                <label className="block text-xs font-medium text-gray-600">Tanggal mulai</label>
+                <Input type="date" value={expenseStart} onChange={(e) => setExpenseStart(e.target.value)} />
               </div>
-            </CardContent>
-          </Card>
+              <div className="space-y-1">
+                <label className="block text-xs font-medium text-gray-600">Tanggal akhir</label>
+                <Input type="date" value={expenseEnd} onChange={(e) => setExpenseEnd(e.target.value)} />
+              </div>
+            </div>
+          </FilterPanel>
 
           <Card>
             <CardContent className="p-0">

@@ -6,13 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { formatCurrency, formatRupiahInput, parseRupiah } from "@/lib/format-rupiah";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { FilterPanel, FilterTrigger } from "@/components/FilterPanel";
 
 interface Product {
   id: string;
@@ -33,6 +34,7 @@ export function ProductsClient() {
   const [search, setSearch] = useState("");
   const [stockFilter, setStockFilter] = useState("all");
   const [activeFilter, setActiveFilter] = useState("all");
+  const [filterOpen, setFilterOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
   const [productDialogOpen, setProductDialogOpen] = useState(false);
@@ -230,124 +232,125 @@ export function ProductsClient() {
           <h1 className="text-2xl font-bold text-gray-900">Produk & Stok</h1>
           <p className="text-gray-500">Kelola produk, stok, dan mutasi barang</p>
         </div>
-        <Dialog open={productDialogOpen} onOpenChange={setProductDialogOpen}>
-          <Button
-            onClick={() => {
-              resetForm();
-              setEditingProduct(null);
-              setProductDialogOpen(true);
-            }}
-          >
-            <Plus className="h-4 w-4" /> Tambah Produk
-          </Button>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{editingProduct ? "Edit Produk" : "Tambah Produk"}</DialogTitle>
-              <DialogDescription>Isi data produk di bawah ini. Harga akan otomatis diformat ke Rupiah.</DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4 py-4">
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">Nama Produk *</label>
-                <Input placeholder="Nama produk" name="name" value={formData.name} onChange={handleInputChange} className={errors.name ? "border-red-500" : ""} />
-                {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
+        <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">
+          <FilterTrigger onClick={() => setFilterOpen(true)} />
+          <Dialog open={productDialogOpen} onOpenChange={setProductDialogOpen}>
+            <Button
+              onClick={() => {
+                resetForm();
+                setEditingProduct(null);
+                setProductDialogOpen(true);
+              }}
+            >
+              <Plus className="h-4 w-4" /> Tambah Produk
+            </Button>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{editingProduct ? "Edit Produk" : "Tambah Produk"}</DialogTitle>
+                <DialogDescription>Isi data produk di bawah ini. Harga akan otomatis diformat ke Rupiah.</DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">SKU</label>
-                  <Input placeholder="SKU (opsional)" name="sku" value={formData.sku} onChange={handleInputChange} />
+                  <label className="block text-sm font-medium text-gray-700">Nama Produk *</label>
+                  <Input placeholder="Nama produk" name="name" value={formData.name} onChange={handleInputChange} className={errors.name ? "border-red-500" : ""} />
+                  {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
                 </div>
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">Satuan</label>
-                  <Input placeholder="pcs, kg, box, dll" name="unit" value={formData.unit} onChange={handleInputChange} />
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">SKU</label>
+                    <Input placeholder="SKU (opsional)" name="sku" value={formData.sku} onChange={handleInputChange} />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">Satuan</label>
+                    <Input placeholder="pcs, kg, box, dll" name="unit" value={formData.unit} onChange={handleInputChange} />
+                  </div>
                 </div>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">Harga Modal *</label>
-                  <Input type="text" min="1" step="100" placeholder="Rp 0" name="costPrice" value={formData.costPrice} onChange={handleInputChange} inputMode="numeric" className={errors.costPrice ? "border-red-500" : ""} required />
-                  {errors.costPrice && <p className="text-sm text-red-500">{errors.costPrice}</p>}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">Harga Modal *</label>
+                    <Input type="text" min="1" step="100" placeholder="Rp 0" name="costPrice" value={formData.costPrice} onChange={handleInputChange} inputMode="numeric" className={errors.costPrice ? "border-red-500" : ""} required />
+                    {errors.costPrice && <p className="text-sm text-red-500">{errors.costPrice}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">Harga Jual *</label>
+                    <Input type="text" min="1" step="100" placeholder="Rp 0" name="sellPrice" value={formData.sellPrice} onChange={handleInputChange} inputMode="numeric" className={errors.sellPrice ? "border-red-500" : ""} required />
+                    {errors.sellPrice && <p className="text-sm text-red-500">{errors.sellPrice}</p>}
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">Harga Jual *</label>
-                  <Input type="text" min="1" step="100" placeholder="Rp 0" name="sellPrice" value={formData.sellPrice} onChange={handleInputChange} inputMode="numeric" className={errors.sellPrice ? "border-red-500" : ""} required />
-                  {errors.sellPrice && <p className="text-sm text-red-500">{errors.sellPrice}</p>}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">{editingProduct ? "Stok saat ini *" : "Stok awal *"}</label>
+                    <Input type="number" min="0" step="1" placeholder="0" name="initialStock" value={formData.initialStock} onChange={handleInputChange} className={errors.initialStock ? "border-red-500" : ""} />
+                    {errors.initialStock && <p className="text-sm text-red-500">{errors.initialStock}</p>}
+                    <p className="text-xs text-gray-500">{editingProduct ? "Perubahan dicatat pada riwayat mutasi." : "Jumlah stok saat produk dibuat."}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">Min Stok (Notifikasi)</label>
+                    <Input type="number" min="0" step="1" name="minStock" value={formData.minStock} onChange={handleInputChange} placeholder="5" className={errors.minStock ? "border-red-500" : ""} />
+                    {errors.minStock && <p className="text-sm text-red-500">{errors.minStock}</p>}
+                  </div>
                 </div>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">{editingProduct ? "Stok saat ini *" : "Stok awal *"}</label>
-                  <Input type="number" min="0" step="1" placeholder="0" name="initialStock" value={formData.initialStock} onChange={handleInputChange} className={errors.initialStock ? "border-red-500" : ""} />
-                  {errors.initialStock && <p className="text-sm text-red-500">{errors.initialStock}</p>}
-                  <p className="text-xs text-gray-500">{editingProduct ? "Perubahan dicatat pada riwayat mutasi." : "Jumlah stok saat produk dibuat."}</p>
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" name="isActive" checked={formData.isActive} onChange={handleInputChange} className="h-4 w-4 rounded border-gray-300" />
+                  <label className="text-sm font-medium text-gray-700">Aktif</label>
                 </div>
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">Min Stok (Notifikasi)</label>
-                  <Input type="number" min="0" step="1" name="minStock" value={formData.minStock} onChange={handleInputChange} placeholder="5" className={errors.minStock ? "border-red-500" : ""} />
-                  {errors.minStock && <p className="text-sm text-red-500">{errors.minStock}</p>}
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <input type="checkbox" name="isActive" checked={formData.isActive} onChange={handleInputChange} className="h-4 w-4 rounded border-gray-300" />
-                <label className="text-sm font-medium text-gray-700">Aktif</label>
-              </div>
-              <DialogFooter>
-                <Button type="submit" disabled={submitting}>
-                  {submitting ? "Menyimpan..." : editingProduct ? "Update" : "Simpan"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+                <DialogFooter>
+                  <Button type="submit" disabled={submitting}>
+                    {submitting ? "Menyimpan..." : editingProduct ? "Update" : "Simpan"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Filter & Pencarian</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid items-end gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <div className="space-y-1 md:col-span-2 xl:col-span-2">
-              <label htmlFor="product-search" className="text-xs font-medium text-gray-600">
-                Cari produk
-              </label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input id="product-search" placeholder="Nama atau SKU" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
-              </div>
-            </div>
-            <div className="space-y-1">
-              <label htmlFor="stock-filter" className="text-xs font-medium text-gray-600">
-                Status stok
-              </label>
-              <Select value={stockFilter} onValueChange={(v: string | null) => setStockFilter(v || "all")}>
-                <SelectTrigger id="stock-filter" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Semua stok</SelectItem>
-                  <SelectItem value="low">Menipis atau habis</SelectItem>
-                  <SelectItem value="ok">Aman</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <label htmlFor="active-filter" className="text-xs font-medium text-gray-600">
-                Status produk
-              </label>
-              <Select value={activeFilter} onValueChange={(v: string | null) => setActiveFilter(v || "all")}>
-                <SelectTrigger id="active-filter" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Semua</SelectItem>
-                  <SelectItem value="true">Aktif</SelectItem>
-                  <SelectItem value="false">Nonaktif</SelectItem>
-                </SelectContent>
-              </Select>
+      <FilterPanel
+        title="Filter & Pencarian"
+        open={filterOpen}
+        onOpenChange={setFilterOpen}
+        onClear={() => {
+          setSearch("");
+          setStockFilter("all");
+          setActiveFilter("all");
+        }}
+      >
+        <div className="grid items-end gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="space-y-1 md:col-span-2 xl:col-span-2">
+            <label className="text-xs font-medium text-gray-600">Cari produk</label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input placeholder="Nama atau SKU" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
             </div>
           </div>
-        </CardContent>
-      </Card>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-gray-600">Status stok</label>
+            <Select value={stockFilter} onValueChange={(v: string | null) => setStockFilter(v || "all")}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua stok</SelectItem>
+                <SelectItem value="low">Menipis atau habis</SelectItem>
+                <SelectItem value="ok">Aman</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-gray-600">Status produk</label>
+            <Select value={activeFilter} onValueChange={(v: string | null) => setActiveFilter(v || "all")}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua</SelectItem>
+                <SelectItem value="true">Aktif</SelectItem>
+                <SelectItem value="false">Nonaktif</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </FilterPanel>
 
       <Card>
         <CardContent className="p-0">

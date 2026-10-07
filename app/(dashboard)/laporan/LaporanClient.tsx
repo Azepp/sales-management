@@ -16,6 +16,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { ProofLink } from "@/components/ProofLink";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
+import { FilterPanel, FilterTrigger } from "@/components/FilterPanel";
 
 interface ProfitLossData {
   totalSales: number;
@@ -60,6 +61,7 @@ interface Product {
 export function LaporanClient() {
   const [activeTab, setActiveTab] = useState<"profit" | "sales" | "stock">("profit");
   const [dateRange, setDateRange] = useState({ start: "", end: "" });
+  const [filterOpen, setFilterOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const [profitData, setProfitData] = useState<ProfitLossData | null>(null);
@@ -129,25 +131,28 @@ export function LaporanClient() {
           <h1 className="text-2xl font-bold text-gray-900">Laporan</h1>
           <p className="text-gray-500">Lihat dan unduh laporan keuangan & operasional</p>
         </div>
+        <div className="flex w-full justify-end sm:w-auto">
+          <FilterTrigger onClick={() => setFilterOpen(true)} />
+        </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Filter Periode</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 sm:grid-cols-2 lg:max-w-2xl">
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal Mulai</label>
-              <Input type="date" value={dateRange.start} onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })} />
-            </div>
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal Akhir</label>
-              <Input type="date" value={dateRange.end} onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })} />
-            </div>
+      <FilterPanel
+        title="Filter Periode"
+        open={filterOpen}
+        onOpenChange={setFilterOpen}
+        onClear={() => setDateRange({ start: "", end: "" })}
+      >
+        <div className="grid gap-4 sm:grid-cols-2 lg:max-w-2xl">
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal Mulai</label>
+            <Input type="date" value={dateRange.start} onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })} />
           </div>
-        </CardContent>
-      </Card>
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal Akhir</label>
+            <Input type="date" value={dateRange.end} onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })} />
+          </div>
+        </div>
+      </FilterPanel>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid w-full grid-cols-3">
