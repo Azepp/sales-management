@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Search, X, Truck, CreditCard, Trash2, Check } from "lucide-react";
+import { Plus, Search, X, Truck, CreditCard, Trash2, Check, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -67,12 +67,31 @@ interface Sale {
     product: Product;
   }>;
   paidAmount: number;
+  note: string | null;
 }
 
 interface PenjualanClientProps {
   products: Product[];
   autoOpenCreate?: boolean;
   initialSaleId?: string | null;
+}
+
+const PAGE_SIZE = 15;
+
+function getApiErrorMessage(data: { error?: unknown }, fallback: string): string {
+  const error = data?.error;
+  if (typeof error === "string" && error) return error;
+  if (error && typeof error === "object") {
+    const flattened = error as { formErrors?: unknown; fieldErrors?: Record<string, unknown>; _errors?: unknown };
+    if (flattened.fieldErrors && typeof flattened.fieldErrors === "object") {
+      for (const messages of Object.values(flattened.fieldErrors)) {
+        if (Array.isArray(messages) && typeof messages[0] === "string") return messages[0];
+      }
+    }
+    if (Array.isArray(flattened.formErrors) && typeof flattened.formErrors[0] === "string") return flattened.formErrors[0];
+    if (Array.isArray(flattened._errors) && typeof flattened._errors[0] === "string") return flattened._errors[0];
+  }
+  return fallback;
 }
 
 export function PenjualanClient({ products, autoOpenCreate = false, initialSaleId = null }: PenjualanClientProps) {
@@ -88,11 +107,14 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
 
   const [showCreateDialog, setShowCreateDialog] = useState(autoOpenCreate);
   const [showDeleteDialog, setShowDeleteDialog] = useState<string | null>(null);
-  const [showEditDialog, setShowEditDialog] = useState<string | null>(null);
+  const [editSaleId, setEditSaleId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
 
   const [createForm, setCreateForm] = useState<{
     customerName: string;
     orderType: "regular" | "preorder";
+    paymentStatus: "unpaid" | "dp" | "paid_full";
+    fulfillmentStatus: "pending" | "ready" | "delivered" | "cancelled";
     items: { productId: string; qty: string; priceAtSale: string }[];
     discountType: "percent" | "fixed";
     discountValue: string;
@@ -101,6 +123,8 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
   }>({
     customerName: "",
     orderType: "regular",
+    paymentStatus: "unpaid",
+    fulfillmentStatus: "pending",
     items: [{ productId: "", qty: "1", priceAtSale: "" }],
     discountType: "percent",
     discountValue: "",
@@ -114,6 +138,8 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
   const [paymentSubmitting, setPaymentSubmitting] = useState(false);
 
   const [statusSubmitting, setStatusSubmitting] = useState(false);
+  const [statusLoadingId, setStatusLoadingId] = useState<string | null>(null);
+  const [editLoading, setEditLoading] = useState(false);
 
   const fetchSales = useCallback(async () => {
     setLoading(true);
@@ -136,6 +162,18 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
     const timer = setTimeout(fetchSales, 300);
     return () => clearTimeout(timer);
   }, [fetchSales]);
+
+  const filterKey = `${search}|${orderTypeFilter}|${fulfillmentFilter}|${paymentFilter}|${dateRange.start}|${dateRange.end}`;
+  const [lastFilterKey, setLastFilterKey] = useState(filterKey);
+  if (filterKey !== lastFilterKey) {
+    setLastFilterKey(filterKey);
+    setPage(1);
+  }
+
+  const totalPages = Math.max(1, Math.ceil(sales.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageOffset = (currentPage - 1) * PAGE_SIZE;
+  const paginatedSales = sales.slice(pageOffset, pageOffset + PAGE_SIZE);
 
   const calculateTotals = (items: typeof createForm.items, discountType?: string, discountValue?: number) => {
     const subtotal = items.reduce((sum, item) => sum + (item.priceAtSale ? parseRupiah(item.priceAtSale) * (item.qty ? parseRupiah(item.qty) : 1) : 0), 0);
@@ -171,6 +209,37 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
       qty: parseRupiah(item.qty),
       priceAtSale: parseRupiah(item.priceAtSale),
     }));
+
+    if (editSaleId) {
+      const saleId = editSaleId;
+      const res = await fetch(`/api/sales/${saleId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerName: createForm.customerName,
+          orderType: createForm.orderType,
+          paymentStatus: createForm.paymentStatus,
+          fulfillmentStatus: createForm.fulfillmentStatus,
+          note: createForm.note,
+          discountType: createForm.discountType,
+          discountValue: parseRupiah(createForm.discountValue),
+          items,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        toast.success("Transaksi diperbarui");
+        setShowCreateDialog(false);
+        setEditSaleId(null);
+        fetchSales();
+        if (selectedSale?.id === saleId) fetchSaleDetail(saleId);
+      } else {
+        toast.error(getApiErrorMessage(data, "Gagal memperbarui transaksi"));
+      }
+      setCreateSubmitting(false);
+      return;
+    }
+
     const res = await (async () => {
       const formData = new FormData();
       formData.append("customerName", createForm.customerName);
@@ -196,6 +265,8 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
       setCreateForm({
         customerName: "",
         orderType: "regular",
+        paymentStatus: "unpaid",
+        fulfillmentStatus: "pending",
         items: [{ productId: "", qty: "1", priceAtSale: "" }],
         discountType: "percent",
         discountValue: "",
@@ -206,7 +277,7 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
       setShowCreateDialog(false);
       fetchSales();
     } else {
-      toast.error(data.error || "Gagal membuat transaksi");
+      toast.error(getApiErrorMessage(data, "Gagal membuat transaksi"));
     }
     setCreateSubmitting(false);
   };
@@ -238,27 +309,32 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
       fetchSaleDetail(selectedSale.id);
       fetchSales();
     } else {
-      toast.error(data.error || "Gagal menambah pembayaran");
+        toast.error(getApiErrorMessage(data, "Gagal menambah pembayaran"));
     }
     setPaymentSubmitting(false);
   };
 
   const handleUpdateStatus = async (saleId: string, fulfillmentStatus?: Sale["fulfillmentStatus"], paymentStatus?: Sale["paymentStatus"], cancelReason?: string) => {
     setStatusSubmitting(true);
-    const res = await fetch(`/api/sales/${saleId}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fulfillmentStatus, paymentStatus, cancelReason }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (res.ok) {
-      toast.success("Status diperbarui");
-      if (selectedSale?.id === saleId) fetchSaleDetail(saleId);
-      fetchSales();
-    } else {
-      toast.error(data.error || "Gagal update status");
+    setStatusLoadingId(saleId);
+    try {
+      const res = await fetch(`/api/sales/${saleId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fulfillmentStatus, paymentStatus, cancelReason }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        toast.success("Status diperbarui");
+        if (selectedSale?.id === saleId) fetchSaleDetail(saleId);
+        fetchSales();
+      } else {
+        toast.error(getApiErrorMessage(data, "Gagal update status"));
+      }
+    } finally {
+      setStatusSubmitting(false);
+      setStatusLoadingId(null);
     }
-    setStatusSubmitting(false);
   };
 
   const handleDeleteSale = async (id: string): Promise<boolean> => {
@@ -273,7 +349,7 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
         fetchSales();
         return true;
       } else {
-        toast.error(data.error || "Gagal menghapus transaksi");
+        toast.error(getApiErrorMessage(data, "Gagal menghapus transaksi"));
         return false;
       }
     } catch {
@@ -289,6 +365,45 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
     if (res.ok) {
       const data = await res.json();
       setSelectedSale(data);
+    }
+  };
+
+  const openEditDialog = async (saleId: string) => {
+    if (editLoading) return;
+    setEditLoading(true);
+    try {
+      const res = await fetch(`/api/sales/${saleId}`);
+      if (!res.ok) {
+        toast.error("Gagal memuat data transaksi");
+        return;
+      }
+      const data: Sale = await res.json();
+      setCreateForm({
+        customerName: data.customerName,
+        orderType: data.orderType,
+        paymentStatus: (["unpaid", "dp", "paid_full"].includes(data.paymentStatus) ? data.paymentStatus : "unpaid") as "unpaid" | "dp" | "paid_full",
+        fulfillmentStatus: (["pending", "ready", "delivered", "cancelled"].includes(data.fulfillmentStatus)
+          ? data.fulfillmentStatus
+          : "pending") as "pending" | "ready" | "delivered" | "cancelled",
+        items: data.items.map((item) => ({
+          productId: item.productId,
+          qty: String(item.qty),
+          priceAtSale: formatCurrency(Number(item.priceAtSale)),
+        })),
+        discountType: data.discountType ?? "percent",
+        discountValue: data.discountValue
+          ? data.discountType === "percent"
+            ? String(Number(data.discountValue))
+            : formatRupiahInput(String(Number(data.discountValue)))
+          : "",
+        note: data.note ?? "",
+        payment: { method: "cash", proofFile: null, note: "" },
+      });
+      setCreateErrors({});
+      setEditSaleId(saleId);
+      setShowCreateDialog(true);
+    } finally {
+      setEditLoading(false);
     }
   };
 
@@ -383,13 +498,23 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
             <h1 className="text-2xl font-bold text-gray-900">Penjualan</h1>
             <p className="text-gray-500">Kelola transaksi penjualan, pre-order, pembayaran & retur</p>
           </div>
-          <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+          <Dialog
+            open={showCreateDialog}
+            onOpenChange={(open) => {
+              if (!open && createSubmitting) return;
+              setShowCreateDialog(open);
+              if (!open) setEditSaleId(null);
+            }}
+          >
             <Button
               type="button"
               onClick={() => {
+                setEditSaleId(null);
                 setCreateForm({
                   customerName: "",
                   orderType: "regular",
+                  paymentStatus: "unpaid",
+                  fulfillmentStatus: "pending",
                   items: [{ productId: "", qty: "1", priceAtSale: "" }],
                   discountType: "percent",
                   discountValue: "",
@@ -405,7 +530,7 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
             </Button>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Transaksi Penjualan Baru</DialogTitle>
+                <DialogTitle>{editSaleId ? "Edit Transaksi" : "Transaksi Penjualan Baru"}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleCreateSubmit} className="space-y-4 py-4">
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -416,16 +541,62 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
                   </div>
                   <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700">Tipe Order *</label>
-                    <Select value={createForm.orderType} onValueChange={(v: string | null) => setCreateForm((prev) => ({ ...prev, orderType: (v || "regular") as "regular" | "preorder" }))}>
+                    <Select
+                      value={createForm.orderType}
+                      onValueChange={(v: string | null) =>
+                        setCreateForm((prev) => {
+                          const nextOrderType = (v || "regular") as "regular" | "preorder";
+                          return {
+                            ...prev,
+                            orderType: nextOrderType,
+                            fulfillmentStatus: nextOrderType === "regular" && prev.fulfillmentStatus === "pending" ? "ready" : prev.fulfillmentStatus,
+                          };
+                        })
+                      }
+                    >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Pilih tipe" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="regular">Reguler (Stok langsung kurangi)</SelectItem>
-                        <SelectItem value="preorder">Pre-Order (Stok kurangi saat Ready)</SelectItem>
+                        <SelectItem value="regular">Reguler (Stok kurangi, langsung Siap)</SelectItem>
+                        <SelectItem value="preorder">Pre-Order (Stok kurangi, status Pending)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
+                  {editSaleId && (
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700">Status Bayar *</label>
+                      <Select value={createForm.paymentStatus} onValueChange={(v: string | null) => setCreateForm((prev) => ({ ...prev, paymentStatus: (v || "unpaid") as "unpaid" | "dp" | "paid_full" }))}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Pilih status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="unpaid">Belum Bayar</SelectItem>
+                          <SelectItem value="dp">DP (Belum Lunas)</SelectItem>
+                          <SelectItem value="paid_full">Lunas</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  {editSaleId && (
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700">Status Kirim *</label>
+                      <Select
+                        value={createForm.fulfillmentStatus}
+                        onValueChange={(v: string | null) => setCreateForm((prev) => ({ ...prev, fulfillmentStatus: (v || "pending") as "pending" | "ready" | "delivered" | "cancelled" }))}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Pilih status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(createForm.orderType === "preorder" || createForm.fulfillmentStatus === "pending") && <SelectItem value="pending">Pending</SelectItem>}
+                          <SelectItem value="ready">Siap</SelectItem>
+                          <SelectItem value="delivered">Diambil</SelectItem>
+                          <SelectItem value="cancelled">Batal</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </div>
 
                 <div className="border-t pt-4">
@@ -465,11 +636,11 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
                             type="text"
                             min="1"
                             value={item.priceAtSale}
-                            onChange={(e) => handleItemChange(index, "priceAtSale", e.target.value)}
+                            onChange={(e) => handleItemChange(index, "priceAtSale", formatRupiahInput(e.target.value))}
                             placeholder="Harga"
                             inputMode="numeric"
                             className={`w-full ${createErrors.price ? "border-red-500" : ""}`}
-                            readOnly
+                            readOnly={!editSaleId}
                           />
                           {createErrors.price && <p className="text-sm text-red-500">{createErrors.price}</p>}
                         </div>
@@ -520,7 +691,7 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
                   <Input placeholder="Catatan tambahan" name="note" value={createForm.note} onChange={handleCreateChange} />
                 </div>
 
-                {createForm.orderType === "regular" && (
+                {!editSaleId && createForm.orderType === "regular" && (
                   <div className="border-t pt-4">
                     <h3 className="text-lg font-semibold mb-4">Pembayaran</h3>
                     <div className="grid gap-4 sm:grid-cols-2">
@@ -573,8 +744,8 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
                 </div>
 
                 <DialogFooter>
-                  <Button type="submit" disabled={createSubmitting} className="w-full sm:w-auto">
-                    {createSubmitting ? "Menyimpan..." : "Buat Transaksi"}
+                  <Button type="submit" loading={createSubmitting} className="w-full sm:w-auto">
+                    {editSaleId ? "Simpan Perubahan" : "Buat Transaksi"}
                   </Button>
                 </DialogFooter>
               </form>
@@ -582,29 +753,12 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
           </Dialog>
         </div>
 
-        {/* Edit Dialog */}
-        {showEditDialog && (
-          <Dialog open={true} onOpenChange={(open) => !open && setShowEditDialog(null)}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Edit Transaksi</DialogTitle>
-              </DialogHeader>
-              <p className="text-gray-500">Fitur edit transaksi akan segera hadir</p>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setShowEditDialog(null)}>
-                  Tutup
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        )}
-
         {/* Delete Dialog */}
         <ConfirmDialog
           open={showDeleteDialog !== null}
           onOpenChange={(open) => !open && setShowDeleteDialog(null)}
           title="Hapus transaksi?"
-          description="Transaksi dan data terkait akan dihapus jika belum memiliki pembayaran. Tindakan ini tidak dapat dibatalkan."
+          description="Transaksi beserta data terkait (pembayaran, retur, item) akan dihapus permanen dan stok akan dikembalikan. Tindakan ini tidak dapat dibatalkan."
           isLoading={statusSubmitting}
           onConfirm={() => (showDeleteDialog ? handleDeleteSale(showDeleteDialog) : false)}
         />
@@ -719,7 +873,7 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-gray-50">
-                      <TableHead>Invoice</TableHead>
+                      <TableHead className="w-12 text-center">No</TableHead>
                       <TableHead>Tanggal</TableHead>
                       <TableHead>Customer</TableHead>
                       <TableHead className="hidden md:table-cell">Produk</TableHead>
@@ -746,9 +900,9 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
                         </TableCell>
                       </TableRow>
                     ) : (
-                      sales.map((sale) => (
+                      paginatedSales.map((sale, saleIndex) => (
                         <TableRow key={sale.id} onClick={() => handleRowClick(sale)} className="cursor-pointer hover:bg-gray-50">
-                          <TableCell className="font-mono font-medium">{sale.invoiceNumber}</TableCell>
+                          <TableCell className="text-center tabular-nums text-gray-500">{pageOffset + saleIndex + 1}</TableCell>
                           <TableCell>{formatDate(sale.date)}</TableCell>
                           <TableCell>{sale.customerName}</TableCell>
                           <TableCell className="hidden md:table-cell">
@@ -781,6 +935,7 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
                                     handleUpdateStatus(sale.id, "ready");
                                   }}
                                   disabled={statusSubmitting}
+                                  loading={statusLoadingId === sale.id}
                                   className="h-8 w-auto px-2"
                                 >
                                   <Truck className="h-3 w-3 mr-1" /> Siap
@@ -794,6 +949,7 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
                                     handleUpdateStatus(sale.id, "delivered");
                                   }}
                                   disabled={statusSubmitting}
+                                  loading={statusLoadingId === sale.id}
                                   className="h-8 w-auto px-2"
                                 >
                                   <Truck className="h-3 w-3 mr-1" /> Diambil
@@ -812,6 +968,19 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
                                   <CreditCard className="h-3 w-3 mr-1" /> Bayar
                                 </Button>
                               )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openEditDialog(sale.id);
+                                }}
+                                disabled={statusSubmitting || editLoading}
+                                loading={editLoading}
+                                className="h-8 w-auto px-2"
+                              >
+                                <Pencil className="h-3 w-3 mr-1" /> Edit
+                              </Button>
                               <Button
                                 size="sm"
                                 variant="destructive"
@@ -844,14 +1013,15 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
                 ) : sales.length === 0 ? (
                   <p className="px-4 py-8 text-center text-sm text-gray-500">Belum ada transaksi</p>
                 ) : (
-                  sales.map((sale) => (
+                  paginatedSales.map((sale, saleIndex) => (
                     <article key={`mobile-${sale.id}`} className="space-y-3 px-4 py-4">
                       <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="truncate font-mono text-sm font-semibold">{sale.invoiceNumber}</p>
-                          <p className="mt-1 truncate text-xs text-muted-foreground">
-                            {sale.customerName} · {formatDate(sale.date)}
-                          </p>
+                        <div className="flex min-w-0 items-start gap-2">
+                          <span className="mt-0.5 shrink-0 text-xs font-medium tabular-nums text-muted-foreground">{pageOffset + saleIndex + 1}.</span>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold">{sale.customerName}</p>
+                            <p className="mt-1 truncate text-xs text-muted-foreground">{formatDate(sale.date)}</p>
+                          </div>
                         </div>
                         <StatusBadge status={sale.paymentStatus} />
                       </div>
@@ -870,12 +1040,12 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
                           Detail
                         </Button>
                         {sale.fulfillmentStatus === "pending" && sale.orderType === "preorder" && (
-                          <Button size="sm" variant="outline" onClick={() => handleUpdateStatus(sale.id, "ready")} disabled={statusSubmitting}>
+                          <Button size="sm" variant="outline" onClick={() => handleUpdateStatus(sale.id, "ready")} disabled={statusSubmitting} loading={statusLoadingId === sale.id}>
                             Tandai siap
                           </Button>
                         )}
                         {sale.fulfillmentStatus === "ready" && (
-                          <Button size="sm" variant="outline" onClick={() => handleUpdateStatus(sale.id, "delivered")} disabled={statusSubmitting}>
+                          <Button size="sm" variant="outline" onClick={() => handleUpdateStatus(sale.id, "delivered")} disabled={statusSubmitting} loading={statusLoadingId === sale.id}>
                             Tandai diambil
                           </Button>
                         )}
@@ -884,6 +1054,9 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
                             Bayar
                           </Button>
                         )}
+                        <Button size="sm" variant="outline" onClick={() => openEditDialog(sale.id)} disabled={statusSubmitting || editLoading} loading={editLoading}>
+                          Edit
+                        </Button>
                         <Button size="sm" variant="destructive" onClick={() => setShowDeleteDialog(sale.id)} disabled={statusSubmitting}>
                           Hapus
                         </Button>
@@ -892,13 +1065,37 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
                   ))
                 )}
               </div>
+              {!loading && sales.length > 0 && (
+                <div className="flex flex-col items-center justify-between gap-3 border-t px-4 py-3 sm:flex-row">
+                  <p className="text-sm text-muted-foreground">
+                    Menampilkan {pageOffset + 1}–{Math.min(pageOffset + PAGE_SIZE, sales.length)} dari {sales.length} transaksi
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="outline" onClick={() => setPage(currentPage - 1)} disabled={currentPage <= 1}>
+                      Sebelumnya
+                    </Button>
+                    <span className="text-sm tabular-nums text-muted-foreground">
+                      Halaman {currentPage} / {totalPages}
+                    </span>
+                    <Button size="sm" variant="outline" onClick={() => setPage(currentPage + 1)} disabled={currentPage >= totalPages}>
+                      Berikutnya
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
 
         <div>
           {selectedSale && (
-            <Dialog open={true} onOpenChange={() => setSelectedSale(null)}>
+            <Dialog
+              open={true}
+              onOpenChange={(open) => {
+                if (!open && (paymentSubmitting || statusSubmitting || editLoading)) return;
+                setSelectedSale(null);
+              }}
+            >
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>{selectedSale.invoiceNumber}</DialogTitle>
@@ -969,12 +1166,12 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
 
                     <div className="flex gap-2 flex-wrap">
                       {selectedSale.fulfillmentStatus === "pending" && selectedSale.orderType === "preorder" && (
-                        <Button size="sm" onClick={() => handleUpdateStatus(selectedSale.id, "ready")} disabled={statusSubmitting}>
+                        <Button size="sm" onClick={() => handleUpdateStatus(selectedSale.id, "ready")} disabled={statusSubmitting} loading={statusLoadingId === selectedSale.id}>
                           <Truck className="h-4 w-4 mr-1" /> Tandai Siap
                         </Button>
                       )}
                       {selectedSale.fulfillmentStatus === "ready" && (
-                        <Button size="sm" onClick={() => handleUpdateStatus(selectedSale.id, "delivered")} disabled={statusSubmitting}>
+                        <Button size="sm" onClick={() => handleUpdateStatus(selectedSale.id, "delivered")} disabled={statusSubmitting} loading={statusLoadingId === selectedSale.id}>
                           <Truck className="h-4 w-4 mr-1" /> Tandai Diambil
                         </Button>
                       )}
@@ -983,6 +1180,18 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
                           <CreditCard className="h-4 w-4 mr-1" /> Tambah Bayar
                         </Button>
                       )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedSale(null);
+                          openEditDialog(selectedSale.id);
+                        }}
+                        disabled={statusSubmitting || editLoading}
+                        loading={editLoading}
+                      >
+                        <Pencil className="h-4 w-4 mr-1" /> Edit
+                      </Button>
                       <Button size="sm" variant="destructive" onClick={() => setShowDeleteDialog(selectedSale.id)} disabled={statusSubmitting}>
                         <Trash2 className="h-4 w-4 mr-1" /> Hapus
                       </Button>
@@ -1038,8 +1247,8 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
                           <span className="font-mono">{formatCurrency(selectedSale.total - selectedSale.paidAmount)}</span>
                         </div>
                       </div>
-                      <Button type="submit" className="w-full" disabled={paymentSubmitting}>
-                        {paymentSubmitting ? "Menyimpan..." : "Tambah Pembayaran"}
+                      <Button type="submit" className="w-full" loading={paymentSubmitting}>
+                        Tambah Pembayaran
                       </Button>
                     </form>
 

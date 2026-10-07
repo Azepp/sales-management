@@ -183,7 +183,7 @@ export async function POST(request: Request) {
         for (const item of items) {
           const product = await tx.product.findUnique({ where: { id: item.productId } });
           if (!product) throw new SaleRequestError("Produk yang dipilih tidak ditemukan", 404);
-          if (orderType === "regular" && product.stockQty < item.qty) {
+          if (product.stockQty < item.qty) {
             throw new SaleRequestError(`Stok ${product.name} tidak mencukupi (tersedia: ${product.stockQty})`, 409);
           }
         }
@@ -222,30 +222,28 @@ export async function POST(request: Request) {
           include: { items: { include: { product: true } } },
         });
 
-        if (orderType === "regular") {
-          for (const item of items as { productId: string; qty: number; priceAtSale: number }[]) {
-            const stockUpdate = await tx.product.updateMany({
-              where: { id: item.productId, stockQty: { gte: item.qty } },
-              data: { stockQty: { decrement: item.qty } },
-            });
-            if (stockUpdate.count !== 1) {
-              const product = await tx.product.findUnique({ where: { id: item.productId }, select: { name: true, stockQty: true } });
-              throw new SaleRequestError(`Stok ${product?.name ?? "produk"} tidak mencukupi (tersedia: ${product?.stockQty ?? 0})`, 409);
-            }
-            await tx.stockMovement.create({
-              data: {
-                productId: item.productId,
-                type: "out",
-                qty: item.qty,
-                note: `Penjualan ${sale.invoiceNumber}`,
-              },
-            });
+        for (const item of items as { productId: string; qty: number; priceAtSale: number }[]) {
+          const stockUpdate = await tx.product.updateMany({
+            where: { id: item.productId, stockQty: { gte: item.qty } },
+            data: { stockQty: { decrement: item.qty } },
+          });
+          if (stockUpdate.count !== 1) {
+            const product = await tx.product.findUnique({ where: { id: item.productId }, select: { name: true, stockQty: true } });
+            throw new SaleRequestError(`Stok ${product?.name ?? "produk"} tidak mencukupi (tersedia: ${product?.stockQty ?? 0})`, 409);
           }
+          await tx.stockMovement.create({
+            data: {
+              productId: item.productId,
+              type: "out",
+              qty: item.qty,
+              note: `Penjualan ${sale.invoiceNumber}`,
+            },
+          });
         }
 
         return sale;
       },
-      { timeout: 10000 }
+      { maxWait: 10000, timeout: 15000 }
     );
 
     return NextResponse.json(result, { status: 201 });
@@ -398,20 +396,45 @@ export async function DELETE(request: Request) {
     // Check if sale exists
     const sale = await prisma.sale.findUnique({
       where: { id: saleId },
-      include: { items: true, payments: true },
+      include: {
+        items: true,
+        returns: { select: { productId: true, qty: true } },
+      },
     });
 
     if (!sale) {
       return NextResponse.json({ error: "Transaksi tidak ditemukan" }, { status: 404 });
     }
 
-    // Check if there are payments - prevent deletion if there are payments
-    if (sale.payments.length > 0) {
-      return NextResponse.json({ error: "Tidak dapat menghapus transaksi yang sudah memiliki pembayaran" }, { status: 400 });
+    let stockDeducted = sale.fulfillmentStatus !== "cancelled";
+    if (stockDeducted && sale.orderType === "preorder" && sale.fulfillmentStatus === "pending") {
+      const outMovement = await prisma.stockMovement.findFirst({
+        where: { type: "out", note: { contains: sale.invoiceNumber } },
+        select: { id: true },
+      });
+      stockDeducted = Boolean(outMovement);
+    }
+
+    if (stockDeducted) {
+      const returnedByProduct = new Map<string, number>();
+      const soldByProduct = new Map<string, number>();
+      for (const returned of sale.returns) {
+        returnedByProduct.set(returned.productId, (returnedByProduct.get(returned.productId) ?? 0) + returned.qty);
+      }
+      for (const item of sale.items) {
+        soldByProduct.set(item.productId, (soldByProduct.get(item.productId) ?? 0) + item.qty);
+      }
+      for (const [productId, soldQty] of soldByProduct) {
+        const stockToRestore = Math.max(0, soldQty - (returnedByProduct.get(productId) ?? 0));
+        if (stockToRestore > 0) {
+          await prisma.product.update({ where: { id: productId }, data: { stockQty: { increment: stockToRestore } } });
+        }
+      }
     }
 
     // Delete related records first (cascade delete)
-    // Delete sale items
+    await prisma.payment.deleteMany({ where: { saleId } });
+    await prisma.return.deleteMany({ where: { saleId } });
     await prisma.saleItem.deleteMany({
       where: { saleId },
     });

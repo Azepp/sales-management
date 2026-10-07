@@ -70,7 +70,7 @@ export async function POST(request: Request) {
         data: { productId, type, qty, note },
         include: { product: true },
       });
-    });
+    }, { maxWait: 10000, timeout: 15000 });
 
     return NextResponse.json(result, { status: 201 });
   } catch (error) {

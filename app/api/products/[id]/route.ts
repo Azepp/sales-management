@@ -79,7 +79,7 @@ export async function PUT(
       });
     }
     return updated;
-  });
+  }, { maxWait: 10000, timeout: 15000 });
 
   if (!product) return NextResponse.json({ error: "Produk tidak ditemukan" }, { status: 404 });
 

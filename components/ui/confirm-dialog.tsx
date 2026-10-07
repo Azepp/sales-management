@@ -33,7 +33,13 @@ export function ConfirmDialog({ open, onOpenChange, title, description, confirmT
   const busy = isLoading || confirming;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (busy && !nextOpen) return;
+        onOpenChange(nextOpen);
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <div className="flex items-center gap-2 mb-2">
@@ -46,8 +52,8 @@ export function ConfirmDialog({ open, onOpenChange, title, description, confirmT
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
             {cancelText}
           </Button>
-          <Button variant={variant === "danger" ? "destructive" : "default"} onClick={handleConfirm} disabled={busy}>
-            {busy ? "Memproses..." : confirmText}
+          <Button variant={variant === "danger" ? "destructive" : "default"} onClick={handleConfirm} loading={busy}>
+            {confirmText}
           </Button>
         </DialogFooter>
       </DialogContent>
