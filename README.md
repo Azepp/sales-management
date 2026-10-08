@@ -1,4 +1,4 @@
-# Binwich Management
+# Sales Management
 
 Aplikasi manajemen penjualan dan inventaris untuk bisnis kuliner (binwich/sandwich). Dibangun dengan **Next.js 15**, **React 19**, **Prisma ORM**, **Supabase**, dan **Tailwind CSS**.
 
