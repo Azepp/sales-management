@@ -77,7 +77,7 @@ interface PenjualanClientProps {
   initialSaleId?: string | null;
 }
 
-const PAGE_SIZE = 15;
+const PAGE_SIZE = 25;
 
 function PaymentProofUploadButton({
   disabled,
@@ -145,6 +145,7 @@ function getApiErrorMessage(data: { error?: unknown }, fallback: string): string
 }
 
 export function PenjualanClient({ products, autoOpenCreate = false, initialSaleId = null }: PenjualanClientProps) {
+  const [availableProducts, setAvailableProducts] = useState(products);
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -213,6 +214,17 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
     }
     setLoading(false);
   }, [search, orderTypeFilter, fulfillmentFilter, paymentFilter, dateRange]);
+
+  const refreshAvailableProducts = async () => {
+    try {
+      const res = await fetch("/api/products?isActive=true");
+      if (!res.ok) throw new Error("Gagal memuat stok terbaru");
+      const data: Product[] = await res.json();
+      setAvailableProducts(data);
+    } catch {
+      toast.error("Penjualan tersimpan, tetapi stok terbaru gagal dimuat. Muat ulang halaman untuk memperbarui.");
+    }
+  };
 
   useEffect(() => {
     const timer = setTimeout(fetchSales, 300);
@@ -288,6 +300,7 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
         setShowCreateDialog(false);
         setEditSaleId(null);
         fetchSales();
+        await refreshAvailableProducts();
         if (selectedSale?.id === saleId) fetchSaleDetail(saleId);
       } else {
         toast.error(getApiErrorMessage(data, "Gagal memperbarui transaksi"));
@@ -332,6 +345,7 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
       setCreateErrors({});
       setShowCreateDialog(false);
       fetchSales();
+      await refreshAvailableProducts();
     } else {
       toast.error(getApiErrorMessage(data, "Gagal membuat transaksi"));
     }
@@ -573,7 +587,7 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
   };
 
   const handleProductSelect = (index: number, productId: string) => {
-    const product = products.find((p) => p.id === productId);
+    const product = availableProducts.find((p) => p.id === productId);
     if (product) {
       setCreateForm((prev) => {
         const newItems = [...prev.items];
@@ -628,6 +642,7 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
               <Button
                 type="button"
                 onClick={() => {
+                  void refreshAvailableProducts();
                   setEditSaleId(null);
                   setCreateForm({
                     customerName: "",
@@ -732,10 +747,10 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
                             <label className="block text-sm font-medium text-gray-700">Produk *</label>
                             <Select value={item.productId} onValueChange={(v: string | null) => handleProductSelect(index, v || "")}>
                               <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Pilih produk">{item.productId && products.find((p) => p.id === item.productId)?.name}</SelectValue>
+                                <SelectValue placeholder="Pilih produk">{item.productId && availableProducts.find((p) => p.id === item.productId)?.name}</SelectValue>
                               </SelectTrigger>
                               <SelectContent>
-                                {products.map((p) => (
+                                {availableProducts.map((p) => (
                                   <SelectItem key={p.id} value={p.id}>
                                     {p.name} {p.sku && `(${p.sku})`} - {formatCurrency(p.sellPrice)} (Stok: {p.stockQty})
                                   </SelectItem>
