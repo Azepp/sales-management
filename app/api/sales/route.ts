@@ -35,7 +35,7 @@ const paymentSchema = z.object({
   amount: z.number().min(1, "Jumlah minimal 1"),
   method: z.enum(["cash", "transfer", "qris", "lainnya"]),
   note: z.string().optional(),
-  proofFile: z.instanceof(File).optional(),
+  proofFile: proofFileSchema.optional(),
 });
 
 class SaleRequestError extends Error {

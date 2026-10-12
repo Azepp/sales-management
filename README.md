@@ -65,6 +65,21 @@ pnpm install
 3. **Public bucket** → **Ya**
 4. **Save**
 
+Bucket publik hanya mengizinkan pembacaan file publik; unggah tetap memerlukan Storage policy. Buka **SQL Editor** di Supabase dan jalankan:
+
+```sql
+create policy "Authenticated users can upload payment proofs"
+on storage.objects
+for insert
+to authenticated
+with check (
+  bucket_id = 'payment-proofs'
+  and name like 'payment-proof-%'
+);
+```
+
+Jika `NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET` diatur ke nama bucket lain, ganti `payment-proofs` pada policy di atas dengan nama tersebut.
+
 ### 4. Konfigurasi Environment Variables
 
 Buat file `.env` di root project (copy dari `.env.example` jika ada):

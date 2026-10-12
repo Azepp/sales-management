@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Plus, Search, X, Truck, CreditCard, Trash2, Check, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -138,10 +138,13 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
 
   const [paymentForm, setPaymentForm] = useState({ method: "cash" as "cash" | "transfer" | "qris" | "lainnya", proofFile: null as File | null, note: "" });
   const [paymentSubmitting, setPaymentSubmitting] = useState(false);
+  const paymentRequestRef = useRef(false);
 
   const [statusSubmitting, setStatusSubmitting] = useState(false);
   const [statusLoadingId, setStatusLoadingId] = useState<string | null>(null);
   const [editLoading, setEditLoading] = useState(false);
+  const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
+  const detailRequestRef = useRef(false);
 
   const fetchSales = useCallback(async () => {
     setLoading(true);
@@ -286,34 +289,42 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
 
   const handleAddPayment = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (paymentRequestRef.current) return;
     if (!selectedSale) return;
     const remainingAmount = selectedSale.total - selectedSale.paidAmount;
     if (remainingAmount <= 0) {
       toast.error("Transaksi sudah lunas");
       return;
     }
+    paymentRequestRef.current = true;
     setPaymentSubmitting(true);
-    const formData = new FormData();
-    formData.append("amount", remainingAmount.toString());
-    formData.append("method", paymentForm.method);
-    formData.append("note", paymentForm.note);
-    if (paymentForm.proofFile) {
-      formData.append("proofFile", paymentForm.proofFile);
-    }
-    const res = await fetch(`/api/sales/${selectedSale.id}?action=payment`, {
-      method: "POST",
-      body: formData,
-    });
-    const data = await res.json().catch(() => ({}));
-    if (res.ok) {
-      toast.success("Pembayaran ditambahkan");
-      setPaymentForm({ method: "cash", proofFile: null, note: "" });
-      fetchSaleDetail(selectedSale.id);
-      fetchSales();
-    } else {
+    try {
+      const formData = new FormData();
+      formData.append("amount", remainingAmount.toString());
+      formData.append("method", paymentForm.method);
+      formData.append("note", paymentForm.note);
+      if (paymentForm.proofFile) {
+        formData.append("proofFile", paymentForm.proofFile);
+      }
+      const res = await fetch(`/api/sales/${selectedSale.id}?action=payment`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        toast.success("Pembayaran ditambahkan");
+        setPaymentForm({ method: "cash", proofFile: null, note: "" });
+        fetchSaleDetail(selectedSale.id);
+        fetchSales();
+      } else {
         toast.error(getApiErrorMessage(data, "Gagal menambah pembayaran"));
+      }
+    } catch {
+      toast.error("Gagal menambah pembayaran. Periksa koneksi lalu coba lagi.");
+    } finally {
+      paymentRequestRef.current = false;
+      setPaymentSubmitting(false);
     }
-    setPaymentSubmitting(false);
   };
 
   const handleUpdateStatus = async (saleId: string, fulfillmentStatus?: Sale["fulfillmentStatus"], paymentStatus?: Sale["paymentStatus"], cancelReason?: string) => {
@@ -367,7 +378,9 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
     if (res.ok) {
       const data = await res.json();
       setSelectedSale(data);
+      return true;
     }
+    return false;
   };
 
   const openEditDialog = async (saleId: string) => {
@@ -414,9 +427,22 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
     if (autoOpenCreate || initialSaleId) window.history.replaceState({}, "", window.location.pathname);
   }, [autoOpenCreate, initialSaleId]);
 
-  const handleRowClick = (sale: Sale, tab: "detail" | "payments" = "detail") => {
-    fetchSaleDetail(sale.id);
-    setActiveTab(tab);
+  const handleRowClick = async (sale: Sale, tab: "detail" | "payments" = "detail") => {
+    if (detailRequestRef.current) return;
+    detailRequestRef.current = true;
+    setDetailLoadingId(sale.id);
+    try {
+      if (await fetchSaleDetail(sale.id)) {
+        setActiveTab(tab);
+      } else {
+        toast.error("Gagal memuat detail transaksi");
+      }
+    } catch {
+      toast.error("Gagal memuat detail transaksi. Periksa koneksi lalu coba lagi.");
+    } finally {
+      detailRequestRef.current = false;
+      setDetailLoadingId(null);
+    }
   };
 
   const formatDate = (dateStr: string) => format(new Date(dateStr), "dd MMM yyyy", { locale: id });
@@ -717,7 +743,7 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
                           <label className="block text-sm font-medium text-gray-700">Bukti Bayar (opsional)</label>
                           <Input
                             type="file"
-                            accept="image/*,application/pdf"
+                            accept="image/jpeg,image/png,application/pdf"
                             name="payment.proofFile"
                             onChange={(e) => {
                               const file = e.target.files?.[0];
@@ -967,6 +993,8 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
                                     e.stopPropagation();
                                     handleRowClick(sale, "payments");
                                   }}
+                                  disabled={detailLoadingId !== null}
+                                  loading={detailLoadingId === sale.id}
                                   className="h-8 w-auto px-2"
                                 >
                                   <CreditCard className="h-3 w-3 mr-1" /> Bayar
@@ -1040,7 +1068,7 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
                         </div>
                       )}
                       <div className="flex flex-wrap gap-2">
-                        <Button size="sm" variant="outline" onClick={() => handleRowClick(sale)}>
+                        <Button size="sm" variant="outline" onClick={() => handleRowClick(sale)} disabled={detailLoadingId !== null} loading={detailLoadingId === sale.id}>
                           Detail
                         </Button>
                         {sale.fulfillmentStatus === "pending" && sale.orderType === "preorder" && (
@@ -1054,7 +1082,7 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
                           </Button>
                         )}
                         {sale.paymentStatus !== "paid_full" && (
-                          <Button size="sm" variant="outline" onClick={() => handleRowClick(sale, "payments")}>
+                          <Button size="sm" variant="outline" onClick={() => handleRowClick(sale, "payments")} disabled={detailLoadingId !== null} loading={detailLoadingId === sale.id}>
                             Bayar
                           </Button>
                         )}
@@ -1222,7 +1250,7 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
                         <label className="block text-sm font-medium text-gray-700">Bukti Bayar (opsional)</label>
                         <Input
                           type="file"
-                          accept="image/*,application/pdf"
+                          accept="image/jpeg,image/png,application/pdf"
                           name="proofFile"
                           onChange={(e) => {
                             const file = e.target.files?.[0];
@@ -1272,9 +1300,7 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
                                 {p.note && <div className="text-xs text-gray-400">{p.note}</div>}
                               </div>
                               {p.proofImageUrl && (
-                                <a href={p.proofImageUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 text-sm hover:underline">
-                                  Lihat Bukti
-                                </a>
+                                <ProofLink payments={[p]} label="Lihat Bukti" />
                               )}
                             </div>
                           ))}
