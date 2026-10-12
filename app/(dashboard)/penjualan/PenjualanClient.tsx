@@ -79,6 +79,55 @@ interface PenjualanClientProps {
 
 const PAGE_SIZE = 15;
 
+function PaymentProofUploadButton({
+  disabled,
+  loading,
+  saleId,
+  paymentId,
+  onUpload,
+  className,
+}: {
+  disabled: boolean;
+  loading: boolean;
+  saleId: string;
+  paymentId: string;
+  onUpload: (saleId: string, paymentId: string, file?: File) => void;
+  className?: string;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/jpeg,image/png,application/pdf"
+        className="sr-only"
+        aria-label="Pilih file bukti pembayaran"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          onUpload(saleId, paymentId, file);
+          event.target.value = "";
+        }}
+      />
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        onClick={(event) => {
+          event.stopPropagation();
+          inputRef.current?.click();
+        }}
+        disabled={disabled}
+        loading={loading}
+        className={className}
+      >
+        <Plus className="mr-1 h-3 w-3" /> Bukti
+      </Button>
+    </>
+  );
+}
+
 function getApiErrorMessage(data: { error?: unknown }, fallback: string): string {
   const error = data?.error;
   if (typeof error === "string" && error) return error;
@@ -139,6 +188,8 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
   const [paymentForm, setPaymentForm] = useState({ method: "cash" as "cash" | "transfer" | "qris" | "lainnya", proofFile: null as File | null, note: "" });
   const [paymentSubmitting, setPaymentSubmitting] = useState(false);
   const paymentRequestRef = useRef(false);
+  const [proofUploadingId, setProofUploadingId] = useState<string | null>(null);
+  const proofUploadRequestRef = useRef(false);
 
   const [statusSubmitting, setStatusSubmitting] = useState(false);
   const [statusLoadingId, setStatusLoadingId] = useState<string | null>(null);
@@ -324,6 +375,44 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
     } finally {
       paymentRequestRef.current = false;
       setPaymentSubmitting(false);
+    }
+  };
+
+  const handleUploadPaymentProof = async (saleId: string, paymentId: string, file?: File) => {
+    if (!file || proofUploadRequestRef.current) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Ukuran bukti pembayaran maksimal 5 MB");
+      return;
+    }
+    if (!["image/jpeg", "image/png", "application/pdf"].includes(file.type)) {
+      toast.error("Bukti harus berupa JPG, PNG, atau PDF");
+      return;
+    }
+
+    proofUploadRequestRef.current = true;
+    setProofUploadingId(paymentId);
+    try {
+      const formData = new FormData();
+      formData.append("paymentId", paymentId);
+      formData.append("proofFile", file);
+      const res = await fetch(`/api/sales/${saleId}?action=proof`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(getApiErrorMessage(data, "Gagal mengunggah bukti pembayaran"));
+        return;
+      }
+
+      toast.success("Bukti pembayaran berhasil ditambahkan");
+      if (selectedSale?.id === saleId) await fetchSaleDetail(saleId);
+      fetchSales();
+    } catch {
+      toast.error("Gagal mengunggah bukti pembayaran. Periksa koneksi lalu coba lagi.");
+    } finally {
+      proofUploadRequestRef.current = false;
+      setProofUploadingId(null);
     }
   };
 
@@ -1000,6 +1089,19 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
                                   <CreditCard className="h-3 w-3 mr-1" /> Bayar
                                 </Button>
                               )}
+                              {sale.paymentStatus === "paid_full" && (() => {
+                                const paymentWithoutProof = sale.payments.find((payment) => !payment.proofImageUrl);
+                                return paymentWithoutProof ? (
+                                  <PaymentProofUploadButton
+                                    disabled={proofUploadingId !== null}
+                                    loading={proofUploadingId === paymentWithoutProof.id}
+                                    saleId={sale.id}
+                                    paymentId={paymentWithoutProof.id}
+                                    onUpload={handleUploadPaymentProof}
+                                    className="h-8 w-auto px-2"
+                                  />
+                                ) : null;
+                              })()}
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -1086,6 +1188,18 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
                             Bayar
                           </Button>
                         )}
+                        {sale.paymentStatus === "paid_full" && (() => {
+                          const paymentWithoutProof = sale.payments.find((payment) => !payment.proofImageUrl);
+                          return paymentWithoutProof ? (
+                            <PaymentProofUploadButton
+                              disabled={proofUploadingId !== null}
+                              loading={proofUploadingId === paymentWithoutProof.id}
+                              saleId={sale.id}
+                              paymentId={paymentWithoutProof.id}
+                              onUpload={handleUploadPaymentProof}
+                            />
+                          ) : null;
+                        })()}
                         <Button size="sm" variant="outline" onClick={() => openEditDialog(sale.id)} disabled={statusSubmitting || editLoading} loading={editLoading}>
                           Edit
                         </Button>
@@ -1299,9 +1413,18 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
                                 </div>
                                 {p.note && <div className="text-xs text-gray-400">{p.note}</div>}
                               </div>
-                              {p.proofImageUrl && (
+                              {p.proofImageUrl ? (
                                 <ProofLink payments={[p]} label="Lihat Bukti" />
-                              )}
+                              ) : selectedSale.paymentStatus === "paid_full" ? (
+                                <PaymentProofUploadButton
+                                  disabled={proofUploadingId !== null}
+                                  loading={proofUploadingId === p.id}
+                                  saleId={selectedSale.id}
+                                  paymentId={p.id}
+                                  onUpload={handleUploadPaymentProof}
+                                  className="h-8 shrink-0"
+                                />
+                              ) : null}
                             </div>
                           ))}
                         </div>

@@ -47,15 +47,21 @@ async function wasStockDeducted(
 
 const proofImageUrlSchema = z.string().url().refine((value) => new URL(value).protocol === "https:", "Tautan bukti harus menggunakan HTTPS");
 
+const paymentProofFileSchema = z.instanceof(File)
+  .refine((file) => file.size <= 5 * 1024 * 1024, "Ukuran bukti pembayaran maksimal 5 MB")
+  .refine((file) => ["image/jpeg", "image/png", "application/pdf"].includes(file.type), "Bukti harus berupa JPG, PNG, atau PDF");
+
 const paymentSchema = z.object({
   amount: z.number().finite().min(1).max(1_000_000_000_000),
   method: z.enum(["cash", "transfer", "qris", "lainnya"]),
-  proofFile: z.instanceof(File)
-    .refine((file) => file.size <= 5 * 1024 * 1024, "Ukuran bukti pembayaran maksimal 5 MB")
-    .refine((file) => ["image/jpeg", "image/png", "application/pdf"].includes(file.type), "Bukti harus berupa JPG, PNG, atau PDF")
-    .optional(),
+  proofFile: paymentProofFileSchema.optional(),
   proofImageUrl: proofImageUrlSchema.optional(),
   note: z.string().max(500).optional(),
+});
+
+const paymentProofUploadSchema = z.object({
+  paymentId: z.string().min(1, "Pembayaran tidak valid"),
+  proofFile: paymentProofFileSchema,
 });
 
 const returnSchema = z.object({
@@ -325,6 +331,71 @@ export async function POST(
   const contentLength = Number(request.headers.get("content-length") ?? 0);
   if (contentLength > 6 * 1024 * 1024) {
     return NextResponse.json({ error: "Ukuran permintaan maksimal 6 MB" }, { status: 413 });
+  }
+
+  if (action === "proof") {
+    let parsed;
+    try {
+      if (!request.headers.get("content-type")?.includes("multipart/form-data")) {
+        return NextResponse.json({ error: "Format unggahan bukti tidak valid" }, { status: 400 });
+      }
+      const formData = await request.formData();
+      const proofFile = formData.get("proofFile");
+      parsed = paymentProofUploadSchema.safeParse({
+        paymentId: String(formData.get("paymentId") ?? ""),
+        proofFile: proofFile instanceof File && proofFile.size > 0 ? proofFile : undefined,
+      });
+    } catch {
+      return NextResponse.json({ error: "Data bukti pembayaran tidak valid" }, { status: 400 });
+    }
+
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    }
+
+    const { paymentId, proofFile } = parsed.data;
+    try {
+      const sale = await prisma.sale.findUnique({
+        where: { id },
+        select: { paymentStatus: true },
+      });
+      if (!sale) {
+        return NextResponse.json({ error: "Transaksi tidak ditemukan" }, { status: 404 });
+      }
+      if (sale.paymentStatus !== "paid_full") {
+        return NextResponse.json({ error: "Bukti tambahan hanya dapat diunggah setelah pembayaran lunas" }, { status: 409 });
+      }
+
+      const existingPayment = await prisma.payment.findFirst({
+        where: { id: paymentId, saleId: id },
+        select: { id: true, proofImageUrl: true },
+      });
+      if (!existingPayment) {
+        return NextResponse.json({ error: "Pembayaran tidak ditemukan" }, { status: 404 });
+      }
+      if (existingPayment.proofImageUrl) {
+        return NextResponse.json({ error: "Pembayaran sudah memiliki bukti" }, { status: 409 });
+      }
+
+      const proofImageUrl = await uploadPaymentProof(proofFile);
+      if (!proofImageUrl) {
+        return NextResponse.json({ error: "Gagal mengunggah bukti pembayaran" }, { status: 500 });
+      }
+
+      const updated = await prisma.payment.updateMany({
+        where: { id: paymentId, saleId: id, proofImageUrl: null },
+        data: { proofImageUrl },
+      });
+      if (updated.count === 0) {
+        return NextResponse.json({ error: "Bukti pembayaran sudah ditambahkan" }, { status: 409 });
+      }
+
+      const payment = await prisma.payment.findUnique({ where: { id: paymentId } });
+      return NextResponse.json(payment);
+    } catch (error) {
+      console.error("Error attaching payment proof:", error);
+      return NextResponse.json({ error: "Gagal menyimpan bukti pembayaran" }, { status: 500 });
+    }
   }
 
   if (action === "payment") {
