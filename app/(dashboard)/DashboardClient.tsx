@@ -17,15 +17,14 @@ import { formatCurrency } from "@/lib/format-rupiah";
 
 interface DashboardClientProps {
   todayRevenue: number | null;
-  monthExpenseTotal: number | null;
-  monthCapitalTotal: number | null;
+  monthSalesTotal: number;
   netProfit: number;
   lowStockProducts: Array<{ id: string; name: string; stockQty: number; minStock: number }>;
   readyOrders: Array<{ id: string; invoiceNumber: string; customerName: string; total: number }>;
   recentSales: Array<{ id: string; invoiceNumber: string; date: string; customerName: string; total: number; paymentStatus: string; fulfillmentStatus: string }>;
 }
 
-export function DashboardClient({ todayRevenue, monthExpenseTotal, monthCapitalTotal, netProfit, lowStockProducts, readyOrders, recentSales }: DashboardClientProps) {
+export function DashboardClient({ todayRevenue, monthSalesTotal, netProfit, lowStockProducts, readyOrders, recentSales }: DashboardClientProps) {
   const [chartPeriod, setChartPeriod] = useState("7d");
   const [chartData, setChartData] = useState<ChartPoint[]>([]);
   const [chartLoading, setChartLoading] = useState(true);
@@ -80,25 +79,31 @@ export function DashboardClient({ todayRevenue, monthExpenseTotal, monthCapitalT
           <CardContent className="">
             <h3 className="text-sm font-medium text-gray-500">Omzet Hari Ini</h3>
             <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(todayRevenue || 0)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="">
-            <h3 className="text-sm font-medium text-gray-500">Modal + Pengeluaran Bulan Ini</h3>
-            <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency((monthCapitalTotal || 0) + (monthExpenseTotal || 0))}</p>
+            <p className="mt-2 text-xs text-muted-foreground">Penjumlahan nilai total transaksi berstatus delivered dengan tanggal mulai hari ini.</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="">
             <h3 className="text-sm font-medium text-gray-500">Estimasi Laba Bersih Bulan Berjalan</h3>
             <p className={`text-2xl font-bold mt-1 ${netProfit >= 0 ? "text-green-600" : "text-red-600"}`}>{formatCurrency(netProfit)}</p>
+            <p className="mt-2 text-xs text-muted-foreground">Omzet delivered − HPP − refund retur. Pengeluaran dicatat terpisah dan tidak mengurangi laba; HPP memakai harga modal produk saat ini.</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="">
+            <h3 className="text-sm font-medium text-gray-500">Total Penjualan Bulan Ini</h3>
+            <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(monthSalesTotal)}</p>
+            <p className="mt-2 text-xs text-muted-foreground">Penjumlahan nilai total transaksi delivered sejak awal bulan ini.</p>
           </CardContent>
         </Card>
       </div>
 
       <Card>
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <CardTitle>Tren omzet dan pengeluaran</CardTitle>
+          <div>
+            <CardTitle>Tren omzet dan pengeluaran</CardTitle>
+            <p className="mt-1 text-sm text-muted-foreground">Omzet menjumlahkan nilai transaksi delivered; pengeluaran ditampilkan sebagai catatan terpisah dan tidak mengurangi laba bersih.</p>
+          </div>
           <div className="flex items-center gap-3">
             <label htmlFor="dashboard-chart-period" className="text-sm font-medium text-gray-600">
               Periode grafik
@@ -149,6 +154,7 @@ export function DashboardClient({ todayRevenue, monthExpenseTotal, monthCapitalT
             </Button>
           </CardHeader>
           <CardContent>
+            <p className="mb-3 text-xs text-muted-foreground">Produk aktif dengan stok saat ini sama dengan atau di bawah batas minimum.</p>
             {lowStockProducts.length === 0 ? (
               <p className="py-4 text-sm text-gray-500">Stok semua aman</p>
             ) : (
@@ -179,6 +185,7 @@ export function DashboardClient({ todayRevenue, monthExpenseTotal, monthCapitalT
             </Button>
           </CardHeader>
           <CardContent>
+            <p className="mb-3 text-xs text-muted-foreground">Lima transaksi terbaru dengan status fulfillment siap diambil.</p>
             {readyOrders.length === 0 ? (
               <p className="py-4 text-sm text-gray-500">Tidak ada order siap diambil</p>
             ) : (
@@ -209,6 +216,7 @@ export function DashboardClient({ todayRevenue, monthExpenseTotal, monthCapitalT
           </Button>
         </CardHeader>
         <CardContent className="p-0 sm:px-6 sm:pb-6">
+          <p className="mb-3 px-4 pt-4 text-xs text-muted-foreground sm:px-0 sm:pt-0">Enam transaksi terakhir berdasarkan tanggal, tanpa membatasi status pembayaran atau fulfillment.</p>
           <div className="hidden overflow-x-auto md:block">
             <Table>
               <TableHeader>

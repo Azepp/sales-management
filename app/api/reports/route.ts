@@ -109,7 +109,7 @@ export async function GET(request: Request) {
 
     const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
     const totalCapital = capitals.reduce((sum, c) => sum + Number(c.amount), 0);
-    const netProfit = totalSales - totalCOGS - totalExpenses - totalReturns;
+    const netProfit = totalSales - totalCOGS - totalReturns;
 
     const data = {
       totalSales,
@@ -178,7 +178,7 @@ function generateProfitLossExcel(
   sheet.addRow(["RINGKASAN"]);
   sheet.addRow(["Total Penjualan (Delivered)", data.totalSales]);
   sheet.addRow(["HPP (COGS)", data.totalCOGS]);
-  sheet.addRow(["Total Pengeluaran", data.totalExpenses]);
+  sheet.addRow(["Total Pengeluaran (catatan; tidak dikurangi dari laba bersih)", data.totalExpenses]);
   sheet.addRow(["Total Retur", data.totalReturns]);
   sheet.addRow(["Laba Bersih", data.netProfit]);
   sheet.addRow(["Total Modal", data.totalCapital]);

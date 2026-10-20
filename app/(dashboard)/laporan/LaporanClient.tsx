@@ -5,7 +5,7 @@ import { Download, FileText, Package, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
@@ -174,6 +174,7 @@ export function LaporanClient() {
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium text-gray-500">Total Penjualan</CardTitle>
+                    <CardDescription>Penjumlahan nilai total transaksi delivered (setelah diskon) berdasarkan tanggal transaksi pada periode terpilih.</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">{formatCurrency(profitData.totalSales)}</div>
@@ -182,6 +183,7 @@ export function LaporanClient() {
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium text-gray-500">HPP (COGS)</CardTitle>
+                    <CardDescription>Jumlah harga modal produk saat ini × kuantitas tiap item dari transaksi delivered.</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold text-red-600">{formatCurrency(profitData.totalCOGS)}</div>
@@ -190,6 +192,7 @@ export function LaporanClient() {
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium text-gray-500">Total Pengeluaran</CardTitle>
+                    <CardDescription>Jumlah catatan pengeluaran pada periode terpilih; ditampilkan terpisah dan tidak dikurangi dari laba bersih.</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold text-red-600">{formatCurrency(profitData.totalExpenses)}</div>
@@ -200,7 +203,7 @@ export function LaporanClient() {
               <Card>
                 <CardHeader>
                   <CardTitle>Perbandingan keuangan</CardTitle>
-                  <p className="text-sm text-muted-foreground">Grafik mengikuti rentang tanggal yang dipilih.</p>
+                  <p className="text-sm text-muted-foreground">Grafik mengikuti rentang tanggal terpilih. Laba bersih = penjualan delivered − HPP − refund retur; pengeluaran hanya dicatat dan ditampilkan terpisah.</p>
                 </CardHeader>
                 <CardContent>
                   <MultiSeriesBarChart
@@ -220,17 +223,19 @@ export function LaporanClient() {
               </Card>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <Card className="border-green-500">
+                <Card className={profitData.netProfit < 0 ? "border-red-500" : "border-green-500"}>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium text-gray-500">Laba Bersih</CardTitle>
+                    <CardDescription>Penjualan delivered − HPP − refund retur dari transaksi tersebut; pengeluaran dan total modal tidak dikurangkan.</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-3xl font-bold text-green-600">{formatCurrency(profitData.netProfit)}</div>
+                    <div className={`text-3xl font-bold ${profitData.netProfit < 0 ? "text-red-600" : "text-green-600"}`}>{formatCurrency(profitData.netProfit)}</div>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium text-gray-500">Total Modal</CardTitle>
+                    <CardDescription>Jumlah catatan modal berdasarkan tanggal modal pada periode terpilih; tidak termasuk perhitungan laba bersih.</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="text-3xl font-bold text-blue-600">{formatCurrency(profitData.totalCapital)}</div>
@@ -291,6 +296,10 @@ export function LaporanClient() {
             </Button>
           </div>
           <Card>
+            <CardHeader>
+              <CardTitle>Rincian transaksi</CardTitle>
+              <CardDescription>Transaksi berdasarkan tanggal penjualan pada periode terpilih, mencakup semua status fulfillment dan pembayaran.</CardDescription>
+            </CardHeader>
             <CardContent className="p-0">
               <div className="hidden overflow-x-auto md:block">
                 <Table>
@@ -401,6 +410,10 @@ export function LaporanClient() {
             </Button>
           </div>
           <Card>
+            <CardHeader>
+              <CardTitle>Daftar stok produk</CardTitle>
+              <CardDescription>Menampilkan produk aktif beserta stok dan harga saat ini. Filter tanggal tidak memengaruhi laporan stok.</CardDescription>
+            </CardHeader>
             <CardContent className="p-0">
               <div className="hidden overflow-x-auto md:block">
                 <Table>
