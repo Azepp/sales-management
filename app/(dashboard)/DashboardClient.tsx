@@ -86,7 +86,7 @@ export function DashboardClient({ todayRevenue, monthSalesTotal, netProfit, lowS
           <CardContent className="">
             <h3 className="text-sm font-medium text-gray-500">Estimasi Laba Bersih Bulan Berjalan</h3>
             <p className={`text-2xl font-bold mt-1 ${netProfit >= 0 ? "text-green-600" : "text-red-600"}`}>{formatCurrency(netProfit)}</p>
-            <p className="mt-2 text-xs text-muted-foreground">Omzet delivered − HPP − refund retur. Pengeluaran dicatat terpisah dan tidak mengurangi laba; HPP memakai harga modal produk saat ini.</p>
+            <p className="mt-2 text-xs text-muted-foreground">Omzet delivered − HPP − refund retur − pengeluaran operasional. HPP memakai harga modal produk saat ini; bahan produksi tidak dikurangi lagi.</p>
           </CardContent>
         </Card>
         <Card>
@@ -102,7 +102,7 @@ export function DashboardClient({ todayRevenue, monthSalesTotal, netProfit, lowS
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle>Tren omzet dan pengeluaran</CardTitle>
-            <p className="mt-1 text-sm text-muted-foreground">Omzet menjumlahkan nilai transaksi delivered; pengeluaran ditampilkan sebagai catatan terpisah dan tidak mengurangi laba bersih.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Omzet menjumlahkan transaksi delivered; grafik mencatat seluruh pengeluaran, sedangkan hanya biaya operasional mengurangi laba bersih.</p>
           </div>
           <div className="flex items-center gap-3">
             <label htmlFor="dashboard-chart-period" className="text-sm font-medium text-gray-600">

@@ -6,6 +6,12 @@ datasource db {
   provider = "postgresql"
 }
 
+enum ExpenseType {
+  production_material
+  operational
+  unclassified
+}
+
 model Capital {
   id        String   @id @default(cuid())
   date      DateTime
@@ -15,11 +21,12 @@ model Capital {
 }
 
 model Expense {
-  id        String   @id @default(cuid())
+  id        String      @id @default(cuid())
   date      DateTime
   amount    Decimal
+  type      ExpenseType @default(unclassified)
   note      String?
-  createdAt DateTime @default(now())
+  createdAt DateTime    @default(now())
 }
 
 model Product {

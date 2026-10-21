@@ -108,13 +108,25 @@ export async function GET(request: Request) {
     }
 
     const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
+    const totalOperatingExpenses = expenses
+      .filter((expense) => expense.type === "operational")
+      .reduce((sum, expense) => sum + Number(expense.amount), 0);
+    const totalProductionExpenses = expenses
+      .filter((expense) => expense.type === "production_material")
+      .reduce((sum, expense) => sum + Number(expense.amount), 0);
+    const totalUnclassifiedExpenses = expenses
+      .filter((expense) => expense.type === "unclassified")
+      .reduce((sum, expense) => sum + Number(expense.amount), 0);
     const totalCapital = capitals.reduce((sum, c) => sum + Number(c.amount), 0);
-    const netProfit = totalSales - totalCOGS - totalReturns;
+    const netProfit = totalSales - totalCOGS - totalReturns - totalOperatingExpenses;
 
     const data = {
       totalSales,
       totalCOGS,
       totalExpenses,
+      totalOperatingExpenses,
+      totalProductionExpenses,
+      totalUnclassifiedExpenses,
       totalReturns,
       netProfit,
       totalCapital,
@@ -178,8 +190,12 @@ function generateProfitLossExcel(
   sheet.addRow(["RINGKASAN"]);
   sheet.addRow(["Total Penjualan (Delivered)", data.totalSales]);
   sheet.addRow(["HPP (COGS)", data.totalCOGS]);
-  sheet.addRow(["Total Pengeluaran (catatan; tidak dikurangi dari laba bersih)", data.totalExpenses]);
+  sheet.addRow(["Total Pengeluaran (catatan)", data.totalExpenses]);
+  sheet.addRow(["Pengeluaran Bahan Produksi (tidak dikurangi lagi)", data.totalProductionExpenses]);
+  sheet.addRow(["Pengeluaran Operasional (dikurangi dari laba)", data.totalOperatingExpenses]);
+  sheet.addRow(["Pengeluaran Belum Diklasifikasikan", data.totalUnclassifiedExpenses]);
   sheet.addRow(["Total Retur", data.totalReturns]);
+  sheet.addRow(["Rumus Laba Bersih", "Penjualan - HPP - Retur - Pengeluaran Operasional"]);
   sheet.addRow(["Laba Bersih", data.netProfit]);
   sheet.addRow(["Total Modal", data.totalCapital]);
   sheet.addRow([]);
@@ -195,10 +211,10 @@ function generateProfitLossExcel(
   sheet.addRow([]);
 
   sheet.addRow(["DETAIL PENGELUARAN"]);
-  sheet.addRow(["Tanggal", "Kategori", "Jumlah", "Catatan"]);
+  sheet.addRow(["Tanggal", "Jenis", "Jumlah", "Catatan"]);
   for (const exp of expenses) {
     const e = exp as Record<string, unknown>;
-    sheet.addRow([e.date, e.category, e.amount, e.note]);
+    sheet.addRow([e.date, expenseTypeLabel(e.type), e.amount, e.note]);
   }
   sheet.addRow([]);
 
@@ -210,6 +226,12 @@ function generateProfitLossExcel(
   }
 
   return sendExcel(workbook, `laba-rugi-${startDate || "all"}-${endDate || "all"}.xlsx`);
+}
+
+function expenseTypeLabel(type: unknown) {
+  if (type === "production_material") return "Bahan produksi (HPP)";
+  if (type === "operational") return "Operasional (di luar HPP)";
+  return "Belum diklasifikasikan";
 }
 
 function generateSalesExcel(sales: unknown[], startDate: string | null, endDate: string | null) {

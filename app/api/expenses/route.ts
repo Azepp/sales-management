@@ -11,6 +11,7 @@ const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
 const expenseSchema = z.object({
   date: dateSchema,
   amount: z.number().finite().min(1).max(1_000_000_000_000),
+  type: z.enum(["production_material", "operational"]),
   note: z.string().max(2000).optional(),
 });
 

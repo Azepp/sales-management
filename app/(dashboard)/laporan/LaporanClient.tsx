@@ -22,6 +22,9 @@ interface ProfitLossData {
   totalSales: number;
   totalCOGS: number;
   totalExpenses: number;
+  totalOperatingExpenses: number;
+  totalProductionExpenses: number;
+  totalUnclassifiedExpenses: number;
   totalReturns: number;
   netProfit: number;
   totalCapital: number;
@@ -192,7 +195,9 @@ export function LaporanClient() {
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium text-gray-500">Total Pengeluaran</CardTitle>
-                    <CardDescription>Jumlah catatan pengeluaran pada periode terpilih; ditampilkan terpisah dan tidak dikurangi dari laba bersih.</CardDescription>
+                    <CardDescription>
+                      Semua catatan pada periode terpilih: bahan produksi {formatCurrency(profitData.totalProductionExpenses)}, operasional {formatCurrency(profitData.totalOperatingExpenses)}, belum diklasifikasikan {formatCurrency(profitData.totalUnclassifiedExpenses)}.
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold text-red-600">{formatCurrency(profitData.totalExpenses)}</div>
@@ -203,16 +208,18 @@ export function LaporanClient() {
               <Card>
                 <CardHeader>
                   <CardTitle>Perbandingan keuangan</CardTitle>
-                  <p className="text-sm text-muted-foreground">Grafik mengikuti rentang tanggal terpilih. Laba bersih = penjualan delivered − HPP − refund retur; pengeluaran hanya dicatat dan ditampilkan terpisah.</p>
+                  <p className="text-sm text-muted-foreground">Grafik mengikuti rentang tanggal terpilih. Hanya pengeluaran operasional yang mengurangi laba; bahan produksi dianggap sudah tercakup dalam HPP.</p>
                 </CardHeader>
                 <CardContent>
                   <MultiSeriesBarChart
-                    ariaLabel="Grafik perbandingan penjualan, HPP, pengeluaran, dan retur"
+                    ariaLabel="Grafik perbandingan penjualan, HPP, bahan produksi, pengeluaran operasional, pengeluaran belum diklasifikasikan, dan retur"
                     data={
                       [
                         { label: "Penjualan", values: [profitData.totalSales] },
                         { label: "HPP", values: [profitData.totalCOGS] },
-                        { label: "Pengeluaran", values: [profitData.totalExpenses] },
+                        { label: "Bahan Produksi (catatan)", values: [profitData.totalProductionExpenses] },
+                        { label: "Operasional", values: [profitData.totalOperatingExpenses] },
+                        { label: "Belum Diklasifikasikan", values: [profitData.totalUnclassifiedExpenses] },
                         { label: "Retur", values: [profitData.totalReturns] },
                       ] satisfies ChartPoint[]
                     }
@@ -226,7 +233,7 @@ export function LaporanClient() {
                 <Card className={profitData.netProfit < 0 ? "border-red-500" : "border-green-500"}>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium text-gray-500">Laba Bersih</CardTitle>
-                    <CardDescription>Penjualan delivered − HPP − refund retur dari transaksi tersebut; pengeluaran dan total modal tidak dikurangkan.</CardDescription>
+                    <CardDescription>Penjualan delivered − HPP − refund retur − pengeluaran operasional. Bahan produksi tidak dikurangi lagi karena sudah masuk HPP.</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className={`text-3xl font-bold ${profitData.netProfit < 0 ? "text-red-600" : "text-green-600"}`}>{formatCurrency(profitData.netProfit)}</div>

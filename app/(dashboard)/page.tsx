@@ -6,10 +6,14 @@ export default async function DashboardPage() {
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const [todaySales, lowStockProducts, readyOrders, recentSales] = await Promise.all([
+  const [todaySales, monthExpenses, lowStockProducts, readyOrders, recentSales] = await Promise.all([
     prisma.sale.aggregate({
       where: { date: { gte: todayStart }, fulfillmentStatus: "delivered" },
       _sum: { total: true },
+    }),
+    prisma.expense.aggregate({
+      where: { date: { gte: monthStart }, type: "operational" },
+      _sum: { amount: true },
     }),
     prisma.product.findMany({
       where: { isActive: true },
@@ -42,6 +46,7 @@ export default async function DashboardPage() {
   }));
 
   const todayRevenue = Number(todaySales._sum.total || 0);
+  const monthOperatingExpenses = Number(monthExpenses._sum.amount || 0);
 
   const monthSales = await prisma.sale.findMany({
     where: { date: { gte: monthStart }, fulfillmentStatus: "delivered" },
@@ -61,7 +66,7 @@ export default async function DashboardPage() {
     }
   }
 
-  const netProfit = monthRevenue - monthCOGS - monthReturns;
+  const netProfit = monthRevenue - monthCOGS - monthReturns - monthOperatingExpenses;
 
   return (
     <DashboardClient todayRevenue={todayRevenue} monthSalesTotal={monthRevenue} netProfit={netProfit} lowStockProducts={lowStock} readyOrders={readyOrdersTyped} recentSales={recentSalesTyped} />

@@ -5,16 +5,30 @@ import { Plus, Edit, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FilterPanel, FilterTrigger } from "@/components/FilterPanel";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { toast } from "sonner";
 import { formatCurrency, formatRupiahInput, parseRupiah } from "@/lib/format-rupiah";
 import { Skeleton } from "@/components/ui/skeleton";
+
+type ExpenseType = "production_material" | "operational" | "unclassified";
+type ExpenseFormType = ExpenseType | "select";
+
+const expenseTypeLabels: Record<ExpenseType, string> = {
+  production_material: "Bahan produksi (HPP)",
+  operational: "Operasional (di luar HPP)",
+  unclassified: "Belum diklasifikasikan",
+};
+
+function isExpenseType(value: string | null): value is ExpenseType {
+  return value === "production_material" || value === "operational" || value === "unclassified";
+}
 
 interface Capital {
   id: string;
@@ -28,6 +42,7 @@ interface Expense {
   id: string;
   date: string;
   amount: number;
+  type: ExpenseType;
   note: string | null;
   createdAt: string;
 }
@@ -57,6 +72,7 @@ export function KeuanganClient() {
     date: format(new Date(), "yyyy-MM-dd"),
     amountRaw: "",
     amount: 0,
+    type: "select" as ExpenseFormType,
     note: "",
   });
 
@@ -108,6 +124,10 @@ export function KeuanganClient() {
 
   const handleExpenseSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (expenseForm.type === "select") {
+      toast.error("Pilih jenis pengeluaran");
+      return;
+    }
     if (!expenseForm.date || expenseForm.amount < 1) {
       toast.error("Isi semua field wajib");
       return;
@@ -199,6 +219,7 @@ export function KeuanganClient() {
       date: item.date.split("T")[0],
       amountRaw: formatRupiahInput(String(item.amount)),
       amount: Number(item.amount),
+      type: item.type,
       note: item.note || "",
     });
     setEditingExpense(item);
@@ -211,7 +232,7 @@ export function KeuanganClient() {
   };
 
   const resetExpenseForm = () => {
-    setExpenseForm({ date: format(new Date(), "yyyy-MM-dd"), amountRaw: "", amount: 0, note: "" });
+    setExpenseForm({ date: format(new Date(), "yyyy-MM-dd"), amountRaw: "", amount: 0, type: "select", note: "" });
     setEditingExpense(null);
   };
 
@@ -284,6 +305,35 @@ export function KeuanganClient() {
                     <Input type="date" name="date" value={expenseForm.date} onChange={handleExpenseChange} required />
                   </div>
                   <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">Jenis *</label>
+                    <Select
+                      value={expenseForm.type}
+                      onValueChange={(value: string | null) => {
+                        if (isExpenseType(value)) setExpenseForm((prev) => ({ ...prev, type: value }));
+                      }}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Pilih jenis pengeluaran" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="select" disabled>Pilih jenis pengeluaran</SelectItem>
+                        <SelectItem value="production_material">{expenseTypeLabels.production_material}</SelectItem>
+                        <SelectItem value="operational">{expenseTypeLabels.operational}</SelectItem>
+                        {editingExpense?.type === "unclassified" && (
+                          <SelectItem value="unclassified">{expenseTypeLabels.unclassified}</SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-gray-500">
+                      Bahan produksi tidak dikurangi lagi karena sudah masuk HPP. Pengeluaran operasional mengurangi laba.
+                    </p>
+                    {editingExpense?.type === "unclassified" && (
+                      <p className="text-xs font-medium text-amber-700">
+                        Catatan lama belum memengaruhi laba. Pilih jenis yang sesuai untuk mengklasifikasikannya.
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700">Jumlah *</label>
                     <Input type="text" name="amountRaw" value={expenseAmountDisplay} onChange={handleExpenseChange} placeholder="Rp 0" inputMode="numeric" required />
                     <p className="text-xs text-gray-500">Format otomatis: Rp 1.000.000</p>
@@ -319,6 +369,7 @@ export function KeuanganClient() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-red-600">{formatCurrency(totalExpense)}</div>
+            <CardDescription className="mt-2">Total catatan pengeluaran sesuai filter tanggal; hanya jenis operasional yang mengurangi laba.</CardDescription>
           </CardContent>
         </Card>
       </div>
@@ -359,6 +410,7 @@ export function KeuanganClient() {
                   <TableHeader>
                     <TableRow className="bg-gray-50">
                       <TableHead>Tanggal</TableHead>
+                      <TableHead>Jenis</TableHead>
                       <TableHead className="text-right">Jumlah</TableHead>
                       <TableHead>Catatan</TableHead>
                       <TableHead className="w-24">Aksi</TableHead>
@@ -476,14 +528,14 @@ export function KeuanganClient() {
                     {loading ? (
                       Array.from({ length: 5 }, (_, index) => (
                         <TableRow key={`expense-skeleton-${index}`}>
-                          <TableCell colSpan={4}>
+                          <TableCell colSpan={5}>
                             <Skeleton className="h-5 w-full" />
                           </TableCell>
                         </TableRow>
                       ))
                     ) : expenses.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={4} className="text-center py-8 text-gray-500">
+                        <TableCell colSpan={5} className="text-center py-8 text-gray-500">
                           Belum ada data pengeluaran
                         </TableCell>
                       </TableRow>
@@ -491,6 +543,7 @@ export function KeuanganClient() {
                       expenses.map((item) => (
                         <TableRow key={item.id}>
                           <TableCell>{formatDate(item.date)}</TableCell>
+                          <TableCell>{expenseTypeLabels[item.type]}</TableCell>
                           <TableCell className="text-right font-mono text-red-600">-{formatCurrency(item.amount)}</TableCell>
                           <TableCell className="text-gray-500">{item.note || "-"}</TableCell>
                           <TableCell>
@@ -528,6 +581,7 @@ export function KeuanganClient() {
                         <span className="text-xs text-muted-foreground">{formatDate(item.date)}</span>
                         <span className="font-medium tabular-nums text-red-700">-{formatCurrency(item.amount)}</span>
                       </div>
+                      <p className="text-sm font-medium">{expenseTypeLabels[item.type]}</p>
                       {item.note && <p className="wrap-break-word text-sm text-muted-foreground">{item.note}</p>}
                       <div className="flex gap-2">
                         <Button variant="outline" size="sm" onClick={() => openEditExpense(item)}>
