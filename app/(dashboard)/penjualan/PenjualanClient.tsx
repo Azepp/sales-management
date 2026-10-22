@@ -524,20 +524,14 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
         customerName: data.customerName,
         orderType: data.orderType,
         paymentStatus: (["unpaid", "dp", "paid_full"].includes(data.paymentStatus) ? data.paymentStatus : "unpaid") as "unpaid" | "dp" | "paid_full",
-        fulfillmentStatus: (["pending", "ready", "delivered", "cancelled"].includes(data.fulfillmentStatus)
-          ? data.fulfillmentStatus
-          : "pending") as "pending" | "ready" | "delivered" | "cancelled",
+        fulfillmentStatus: (["pending", "ready", "delivered", "cancelled"].includes(data.fulfillmentStatus) ? data.fulfillmentStatus : "pending") as "pending" | "ready" | "delivered" | "cancelled",
         items: data.items.map((item) => ({
           productId: item.productId,
           qty: String(item.qty),
           priceAtSale: formatCurrency(Number(item.priceAtSale)),
         })),
         discountType: data.discountType ?? "percent",
-        discountValue: data.discountValue
-          ? data.discountType === "percent"
-            ? String(Number(data.discountValue))
-            : formatRupiahInput(String(Number(data.discountValue)))
-          : "",
+        discountValue: data.discountValue ? (data.discountType === "percent" ? String(Number(data.discountValue)) : formatRupiahInput(String(Number(data.discountValue)))) : "",
         note: data.note ?? "",
         payment: { method: "cash", proofFile: null, note: "" },
       });
@@ -739,10 +733,7 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
                     {editSaleId && (
                       <div className="space-y-2">
                         <label className="block text-sm font-medium text-gray-700">Status Kirim *</label>
-                        <Select
-                          value={createForm.fulfillmentStatus}
-                          onValueChange={(v: string | null) => setCreateForm((prev) => ({ ...prev, fulfillmentStatus: (v || "pending") as "pending" | "ready" | "delivered" | "cancelled" }))}
-                        >
+                        <Select value={createForm.fulfillmentStatus} onValueChange={(v: string | null) => setCreateForm((prev) => ({ ...prev, fulfillmentStatus: (v || "pending") as "pending" | "ready" | "delivered" | "cancelled" }))}>
                           <SelectTrigger className="w-full">
                             <SelectValue placeholder="Pilih status" />
                           </SelectTrigger>
@@ -829,7 +820,14 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
                       {createForm.discountType === "percent" ? (
                         <div className="flex flex-wrap gap-2">
                           {discountPercentOptions.map((p) => (
-                            <Button key={p} type="button" variant={createForm.discountValue === String(p) ? "default" : "outline"} size="sm" className="w-17.5" onClick={() => setCreateForm((prev) => ({ ...prev, discountValue: String(p) }))}>
+                            <Button
+                              key={p}
+                              type="button"
+                              variant={createForm.discountValue === String(p) ? "default" : "outline"}
+                              size="sm"
+                              className="w-17.5"
+                              onClick={() => setCreateForm((prev) => ({ ...prev, discountValue: String(p) }))}
+                            >
                               {p}%
                             </Button>
                           ))}
@@ -855,7 +853,10 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
                       <div className="grid gap-4 sm:grid-cols-2">
                         <div className="space-y-2">
                           <label className="block text-sm font-medium text-gray-700">Metode *</label>
-                          <Select value={createForm.payment.method} onValueChange={(v: string | null) => setCreateForm((prev) => ({ ...prev, payment: { ...prev.payment, method: (v || "cash") as "cash" | "transfer" | "qris" | "lainnya" } }))}>
+                          <Select
+                            value={createForm.payment.method}
+                            onValueChange={(v: string | null) => setCreateForm((prev) => ({ ...prev, payment: { ...prev.payment, method: (v || "cash") as "cash" | "transfer" | "qris" | "lainnya" } }))}
+                          >
                             <SelectTrigger className="w-full">
                               <SelectValue placeholder="Pilih metode" />
                             </SelectTrigger>
@@ -1136,19 +1137,20 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
                                   <CreditCard className="h-3 w-3 mr-1" /> Bayar
                                 </Button>
                               )}
-                              {sale.paymentStatus === "paid_full" && (() => {
-                                const paymentWithoutProof = sale.payments.find((payment) => !payment.proofImageUrl);
-                                return paymentWithoutProof ? (
-                                  <PaymentProofUploadButton
-                                    disabled={proofUploadingId !== null}
-                                    loading={proofUploadingId === paymentWithoutProof.id}
-                                    saleId={sale.id}
-                                    paymentId={paymentWithoutProof.id}
-                                    onUpload={handleUploadPaymentProof}
-                                    className="h-8 w-auto px-2"
-                                  />
-                                ) : null;
-                              })()}
+                              {sale.paymentStatus === "paid_full" &&
+                                (() => {
+                                  const paymentWithoutProof = sale.payments.find((payment) => !payment.proofImageUrl);
+                                  return paymentWithoutProof ? (
+                                    <PaymentProofUploadButton
+                                      disabled={proofUploadingId !== null}
+                                      loading={proofUploadingId === paymentWithoutProof.id}
+                                      saleId={sale.id}
+                                      paymentId={paymentWithoutProof.id}
+                                      onUpload={handleUploadPaymentProof}
+                                      className="h-8 w-auto px-2"
+                                    />
+                                  ) : null;
+                                })()}
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -1235,18 +1237,13 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
                             Bayar
                           </Button>
                         )}
-                        {sale.paymentStatus === "paid_full" && (() => {
-                          const paymentWithoutProof = sale.payments.find((payment) => !payment.proofImageUrl);
-                          return paymentWithoutProof ? (
-                            <PaymentProofUploadButton
-                              disabled={proofUploadingId !== null}
-                              loading={proofUploadingId === paymentWithoutProof.id}
-                              saleId={sale.id}
-                              paymentId={paymentWithoutProof.id}
-                              onUpload={handleUploadPaymentProof}
-                            />
-                          ) : null;
-                        })()}
+                        {sale.paymentStatus === "paid_full" &&
+                          (() => {
+                            const paymentWithoutProof = sale.payments.find((payment) => !payment.proofImageUrl);
+                            return paymentWithoutProof ? (
+                              <PaymentProofUploadButton disabled={proofUploadingId !== null} loading={proofUploadingId === paymentWithoutProof.id} saleId={sale.id} paymentId={paymentWithoutProof.id} onUpload={handleUploadPaymentProof} />
+                            ) : null;
+                          })()}
                         <Button size="sm" variant="outline" onClick={() => openEditDialog(sale.id)} disabled={statusSubmitting || editLoading} loading={editLoading}>
                           Edit
                         </Button>
@@ -1464,14 +1461,7 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
                                 {p.proofImageUrl ? (
                                   <ProofLink payments={[p]} label="Lihat Bukti" />
                                 ) : selectedSale.paymentStatus === "paid_full" ? (
-                                  <PaymentProofUploadButton
-                                    disabled={proofUploadingId !== null}
-                                    loading={proofUploadingId === p.id}
-                                    saleId={selectedSale.id}
-                                    paymentId={p.id}
-                                    onUpload={handleUploadPaymentProof}
-                                    className="h-8 shrink-0"
-                                  />
+                                  <PaymentProofUploadButton disabled={proofUploadingId !== null} loading={proofUploadingId === p.id} saleId={selectedSale.id} paymentId={p.id} onUpload={handleUploadPaymentProof} className="h-8 shrink-0" />
                                 ) : null}
                                 <Button
                                   type="button"
