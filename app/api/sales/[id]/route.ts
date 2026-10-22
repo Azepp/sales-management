@@ -542,7 +542,7 @@ export async function POST(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const supabase = await createClient();
@@ -550,6 +550,40 @@ export async function DELETE(
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
+  const paymentId = new URL(request.url).searchParams.get("paymentId");
+  if (paymentId) {
+    try {
+      const result = await prisma.$transaction(async (tx) => {
+        await tx.$queryRaw<Array<{ id: string }>>`SELECT "id" FROM "Sale" WHERE "id" = ${id} FOR UPDATE`;
+        const sale = await tx.sale.findUnique({
+          where: { id },
+          include: { payments: true },
+        });
+        if (!sale) throw new SaleActionError("Transaksi tidak ditemukan", 404);
+
+        const payment = sale.payments.find((item) => item.id === paymentId);
+        if (!payment) throw new SaleActionError("Pembayaran tidak ditemukan", 404);
+
+        await tx.payment.delete({ where: { id: paymentId } });
+        const paidAmount = sale.payments.reduce(
+          (sum, item) => sum + Number(item.amount) - (item.id === paymentId ? Number(item.amount) : 0),
+          0
+        );
+        const paymentStatus = paidAmount >= Number(sale.total) ? "paid_full" : paidAmount > 0 ? "dp" : "unpaid";
+        await tx.sale.update({ where: { id }, data: { paymentStatus } });
+
+        return { paidAmount, paymentStatus };
+      }, { maxWait: 10000, timeout: 15000 });
+
+      return NextResponse.json(result);
+    } catch (error) {
+      return NextResponse.json(
+        { error: error instanceof SaleActionError ? error.message : "Gagal menghapus pembayaran" },
+        { status: error instanceof SaleActionError ? error.status : 500 }
+      );
+    }
+  }
+
   try {
     await prisma.$transaction(async (tx) => {
       await tx.$queryRaw<Array<{ id: string }>>`SELECT "id" FROM "Sale" WHERE "id" = ${id} FOR UPDATE`;

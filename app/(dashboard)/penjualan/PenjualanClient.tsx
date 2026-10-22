@@ -159,6 +159,8 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
 
   const [showCreateDialog, setShowCreateDialog] = useState(autoOpenCreate);
   const [showDeleteDialog, setShowDeleteDialog] = useState<string | null>(null);
+  const [showDeletePaymentDialog, setShowDeletePaymentDialog] = useState<{ saleId: string; paymentId: string } | null>(null);
+  const [paymentDeleteSubmitting, setPaymentDeleteSubmitting] = useState(false);
   const [editSaleId, setEditSaleId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
 
@@ -473,6 +475,28 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
       return false;
     } finally {
       setStatusSubmitting(false);
+    }
+  };
+
+  const handleDeletePayment = async (saleId: string, paymentId: string): Promise<boolean> => {
+    setPaymentDeleteSubmitting(true);
+    try {
+      const res = await fetch(`/api/sales/${saleId}?paymentId=${encodeURIComponent(paymentId)}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(getApiErrorMessage(data, "Gagal menghapus pembayaran"));
+        return false;
+      }
+
+      toast.success("Pembayaran dihapus");
+      await fetchSaleDetail(saleId);
+      fetchSales();
+      return true;
+    } catch {
+      toast.error("Gagal menghapus pembayaran. Periksa koneksi lalu coba lagi.");
+      return false;
+    } finally {
+      setPaymentDeleteSubmitting(false);
     }
   };
 
@@ -896,6 +920,14 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
           description="Transaksi beserta data terkait (pembayaran, retur, item) akan dihapus permanen dan stok akan dikembalikan. Tindakan ini tidak dapat dibatalkan."
           isLoading={statusSubmitting}
           onConfirm={() => (showDeleteDialog ? handleDeleteSale(showDeleteDialog) : false)}
+        />
+        <ConfirmDialog
+          open={showDeletePaymentDialog !== null}
+          onOpenChange={(open) => !open && setShowDeletePaymentDialog(null)}
+          title="Hapus pembayaran?"
+          description="Riwayat pembayaran ini akan dihapus permanen dan status pembayaran transaksi akan dihitung ulang. Tindakan ini tidak dapat dibatalkan."
+          isLoading={paymentDeleteSubmitting}
+          onConfirm={() => (showDeletePaymentDialog ? handleDeletePayment(showDeletePaymentDialog.saleId, showDeletePaymentDialog.paymentId) : false)}
         />
       </div>
 
@@ -1428,18 +1460,31 @@ export function PenjualanClient({ products, autoOpenCreate = false, initialSaleI
                                 </div>
                                 {p.note && <div className="text-xs text-gray-400">{p.note}</div>}
                               </div>
-                              {p.proofImageUrl ? (
-                                <ProofLink payments={[p]} label="Lihat Bukti" />
-                              ) : selectedSale.paymentStatus === "paid_full" ? (
-                                <PaymentProofUploadButton
-                                  disabled={proofUploadingId !== null}
-                                  loading={proofUploadingId === p.id}
-                                  saleId={selectedSale.id}
-                                  paymentId={p.id}
-                                  onUpload={handleUploadPaymentProof}
-                                  className="h-8 shrink-0"
-                                />
-                              ) : null}
+                              <div className="flex items-center gap-1">
+                                {p.proofImageUrl ? (
+                                  <ProofLink payments={[p]} label="Lihat Bukti" />
+                                ) : selectedSale.paymentStatus === "paid_full" ? (
+                                  <PaymentProofUploadButton
+                                    disabled={proofUploadingId !== null}
+                                    loading={proofUploadingId === p.id}
+                                    saleId={selectedSale.id}
+                                    paymentId={p.id}
+                                    onUpload={handleUploadPaymentProof}
+                                    className="h-8 shrink-0"
+                                  />
+                                ) : null}
+                                <Button
+                                  type="button"
+                                  size="icon"
+                                  variant="ghost"
+                                  aria-label="Hapus pembayaran"
+                                  title="Hapus pembayaran"
+                                  disabled={paymentDeleteSubmitting}
+                                  onClick={() => setShowDeletePaymentDialog({ saleId: selectedSale.id, paymentId: p.id })}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </div>
                           ))}
                         </div>
