@@ -56,10 +56,12 @@ export default async function DashboardPage() {
   let monthRevenue = 0;
   let monthCOGS = 0;
   let monthReturns = 0;
+  let monthUnitsSold = 0;
   for (const sale of monthSales) {
     monthRevenue += Number(sale.total);
     for (const item of sale.items) {
       monthCOGS += Number(item.product.costPrice) * item.qty;
+      monthUnitsSold += item.qty;
     }
     for (const ret of sale.returns) {
       monthReturns += Number(ret.refundAmount);
@@ -69,6 +71,6 @@ export default async function DashboardPage() {
   const netProfit = monthRevenue - monthCOGS - monthReturns - monthOperatingExpenses;
 
   return (
-    <DashboardClient todayRevenue={todayRevenue} monthSalesTotal={monthRevenue} netProfit={netProfit} lowStockProducts={lowStock} readyOrders={readyOrdersTyped} recentSales={recentSalesTyped} />
+    <DashboardClient todayRevenue={todayRevenue} monthSalesTotal={monthRevenue} netProfit={netProfit} lowStockProducts={lowStock} readyOrders={readyOrdersTyped} recentSales={recentSalesTyped} monthUnitsSold={monthUnitsSold} />
   );
 }

@@ -96,11 +96,13 @@ export async function GET(request: Request) {
     let totalSales = 0;
     let totalCOGS = 0;
     let totalReturns = 0;
+    let totalUnitsSold = 0;
 
     for (const sale of sales) {
       totalSales += Number(sale.total);
       for (const item of sale.items) {
         totalCOGS += Number(item.product.costPrice) * item.qty;
+        totalUnitsSold += item.qty;
       }
       for (const ret of sale.returns) {
         totalReturns += Number(ret.refundAmount);
@@ -131,6 +133,7 @@ export async function GET(request: Request) {
       netProfit,
       totalCapital,
       salesCount: sales.length,
+      totalUnitsSold,
     };
 
     if (format === "excel") {
@@ -189,6 +192,7 @@ function generateProfitLossExcel(
 
   sheet.addRow(["RINGKASAN"]);
   sheet.addRow(["Total Penjualan (Delivered)", data.totalSales]);
+  sheet.addRow(["Total Unit Terjual (PCS)", data.totalUnitsSold]);
   sheet.addRow(["HPP (COGS)", data.totalCOGS]);
   sheet.addRow(["Total Pengeluaran (catatan)", data.totalExpenses]);
   sheet.addRow(["Pengeluaran Bahan Produksi (tidak dikurangi lagi)", data.totalProductionExpenses]);

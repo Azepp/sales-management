@@ -19,12 +19,13 @@ interface DashboardClientProps {
   todayRevenue: number | null;
   monthSalesTotal: number;
   netProfit: number;
+  monthUnitsSold: number;
   lowStockProducts: Array<{ id: string; name: string; stockQty: number; minStock: number }>;
   readyOrders: Array<{ id: string; invoiceNumber: string; customerName: string; total: number }>;
   recentSales: Array<{ id: string; invoiceNumber: string; date: string; customerName: string; total: number; paymentStatus: string; fulfillmentStatus: string }>;
 }
 
-export function DashboardClient({ todayRevenue, monthSalesTotal, netProfit, lowStockProducts, readyOrders, recentSales }: DashboardClientProps) {
+export function DashboardClient({ todayRevenue, monthSalesTotal, netProfit, monthUnitsSold, lowStockProducts, readyOrders, recentSales }: DashboardClientProps) {
   const [chartPeriod, setChartPeriod] = useState("7d");
   const [chartData, setChartData] = useState<ChartPoint[]>([]);
   const [chartLoading, setChartLoading] = useState(true);
@@ -74,12 +75,19 @@ export function DashboardClient({ todayRevenue, monthSalesTotal, netProfit, lowS
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardContent className="">
             <h3 className="text-sm font-medium text-gray-500">Omzet Hari Ini</h3>
             <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(todayRevenue || 0)}</p>
             <p className="mt-2 text-xs text-muted-foreground">Penjumlahan nilai total transaksi berstatus delivered dengan tanggal mulai hari ini.</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="">
+            <h3 className="text-sm font-medium text-gray-500">Total Unit Terjual Bulan Ini</h3>
+            <p className="text-2xl font-bold text-gray-900 mt-1">{monthUnitsSold.toLocaleString("id-ID")} PCS</p>
+            <p className="mt-2 text-xs text-muted-foreground">Penjumlahan kuantitas item dari transaksi delivered sejak awal bulan ini.</p>
           </CardContent>
         </Card>
         <Card>

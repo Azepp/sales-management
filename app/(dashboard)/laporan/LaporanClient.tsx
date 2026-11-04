@@ -29,6 +29,7 @@ interface ProfitLossData {
   netProfit: number;
   totalCapital: number;
   salesCount: number;
+  totalUnitsSold: number;
 }
 
 interface Sale {
@@ -173,7 +174,7 @@ export function LaporanClient() {
         <TabsContent value="profit" className="space-y-4">
           {profitData ? (
             <>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium text-gray-500">Total Penjualan</CardTitle>
@@ -181,6 +182,15 @@ export function LaporanClient() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">{formatCurrency(profitData.totalSales)}</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-gray-500">Total Unit Terjual</CardTitle>
+                    <CardDescription>Penjumlahan kuantitas item dari transaksi delivered pada periode terpilih.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{profitData.totalUnitsSold.toLocaleString("id-ID")} PCS</div>
                   </CardContent>
                 </Card>
                 <Card>
@@ -258,8 +268,8 @@ export function LaporanClient() {
             </>
           ) : loading ? (
             <>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {Array.from({ length: 3 }, (_, index) => (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                {Array.from({ length: 4 }, (_, index) => (
                   <Card key={`profit-kpi-skeleton-${index}`}>
                     <CardHeader className="pb-2">
                       <Skeleton className="h-4 w-32" />
